@@ -42,6 +42,19 @@ export default function Inventory() {
     navigate('/inspection')
   }
 
+  const handleView = (inspectionId?: string) => {
+    if (!inspectionId) return
+    navigate(`/inspection/view/${inspectionId}`)
+  }
+
+  const handleReports = (vehicleId: string) => {
+    navigate(`/reports?vehicle=${vehicleId}`)
+  }
+
+  const handleListing = (vehicleId: string) => {
+    navigate(`/marketing?vehicle=${vehicleId}`)
+  }
+
   return (
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -130,12 +143,32 @@ export default function Inventory() {
                   )}
                   <p><span className="font-medium">Stock:</span> {vehicle.stockNumber || '-'}</p>
                 </div>
-                <button
-                  onClick={() => handleEdit(vehicle.inspectionId)}
-                  className="mt-4 w-full bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700"
-                >
-                  Edit Inspection
-                </button>
+                <div className="grid grid-cols-4 gap-2 mt-4">
+                  <button
+                    onClick={() => handleListing(vehicle.id)}
+                    className="bg-purple-50 text-purple-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-purple-100"
+                  >
+                    Listing
+                  </button>
+                  <button
+                    onClick={() => handleReports(vehicle.id)}
+                    className="bg-blue-50 text-blue-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-100"
+                  >
+                    Reports
+                  </button>
+                  <button
+                    onClick={() => handleView(vehicle.inspectionId)}
+                    className="bg-amber-50 text-amber-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-amber-100"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleEdit(vehicle.inspectionId)}
+                    className="bg-indigo-50 text-indigo-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
             </div>
           ))}

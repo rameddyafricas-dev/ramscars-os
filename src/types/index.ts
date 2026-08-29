@@ -150,12 +150,34 @@ export interface Lead extends BaseEntity { customerId: string; vehicleId?: strin
 export type ConsignmentPeriod = '30' | '60' | '90';
 export type ConsignmentStatus = 'active' | 'expiring' | 'expired' | 'cancelled' | 'completed';
 export interface Consignment extends BaseEntity { vehicleId: string; ownerId: string; startDate: string; expiryDate: string; period: ConsignmentPeriod; targetPrice: number; listingPrice: number; status: ConsignmentStatus; notes?: string; }
-export type SaleStatus = 'reserved' | 'in_progress' | 'agreed' | 'completed' | 'cancelled';
-export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded';
-export interface Sale extends BaseEntity { vehicleId: string; buyerId: string; consignmentId?: string; status: SaleStatus; salePrice: number; deposit?: number; paymentStatus: PaymentStatus; dateReserved?: string; dateAgreed?: string; dateCompleted?: string; notes?: string; }
 export type ListingStatus = 'draft' | 'published' | 'archived';
 export type MarketingChannel = 'facebook' | 'instagram' | 'whatsapp' | 'tiktok' | 'x' | 'youtube';
 export interface Listing extends BaseEntity { vehicleId: string; title: string; description?: string; seoKeywords?: string[]; hashtags?: string[]; status: ListingStatus; channels: MarketingChannel[]; }
+export type SaleStatus = 'reserved' | 'in_progress' | 'agreed' | 'completed' | 'cancelled';
+export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded';
+
+export interface Sale extends BaseEntity {
+  vehicleId: string;
+  buyerId: string;
+  consignmentId?: string;
+  status: SaleStatus;
+  salePrice: number;
+  deposit?: number;
+  paymentStatus: PaymentStatus;
+  dateReserved?: string;
+  dateAgreed?: string;
+  dateCompleted?: string;
+  notes?: string;
+}
+
+export interface Payment extends BaseEntity {
+  saleId: string;
+  amount: number;
+  method: string;
+  date: string;
+  notes?: string;
+}
+
 export type ReportType = 'internal' | 'customer';
 export interface Report extends BaseEntity { type: ReportType; vehicleId?: string; saleId?: string; generatedAt: string; data: Record<string, unknown>; fileUrl?: string; }
 export type ID = string;

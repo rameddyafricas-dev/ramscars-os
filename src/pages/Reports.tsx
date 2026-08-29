@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
@@ -7,13 +8,19 @@ export default function Reports() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
   const { profile, loadProfile } = useDealershipStore()
-  const [selectedVehicleId, setSelectedVehicleId] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialVehicleId = searchParams.get('vehicle') || ''
+  const [selectedVehicleId, setSelectedVehicleId] = useState(initialVehicleId)
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
     loadProfile()
   }, [loadVehicles, loadInspections, loadProfile])
+
+  useEffect(() => {
+    if (initialVehicleId) setSelectedVehicleId(initialVehicleId)
+  }, [initialVehicleId])
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId)
   const selectedInspection = inspections.find(
@@ -28,6 +35,19 @@ export default function Reports() {
     const location = type === 'internal'
       ? selectedInspection.location.decimal || selectedInspection.location.dms || dealershipLocation
       : dealershipLocation
+
+    const faultsHtml = selectedInspection.faults.length > 0
+      ? selectedInspection.faults.map((f) => `<p>• ${f.description}</p>`).join('')
+      : '<p>No faults recorded</p>'
+
+    const checklistHtml = selectedInspection.checklist.map((c) => `
+      <tr>
+        <td>${c.category}</td>
+        <td>${c.label}</td>
+        <td>${c.result || 'Not set'}</td>
+        <td>${c.note ? `📝 ${c.note}` : '—'}</td>
+      </tr>
+    `).join('')
 
     const html = `
       <html>
@@ -77,18 +97,22 @@ export default function Reports() {
           }
           <div class="section">
             <h2>Faults</h2>
-            ${selectedInspection.faults.length > 0 ? selectedInspection.faults.map(f => `<p>• ${f.description}</p>`).join('') : '<p>No faults recorded</p>'}
+            ${faultsHtml}
           </div>
           <div class="section">
             <h2>Checklist</h2>
             <table>
-              <tr><th>Category</th><th>Item</th><th>Result</th></tr>
-              ${selectedInspection.checklist.map(c => `<tr><td>${c.category}</td><td>${c.label}</td><td>${c.result || 'Not set'}</td></tr>`).join('')}
+              <thead>
+                <tr><th>Category</th><th>Item</th><th>Result</th><th>Notes</th></tr>
+              </thead>
+              <tbody>
+                ${checklistHtml}
+              </tbody>
             </table>
           </div>
           <div class="section">
             <h2>Photos</h2>
-            ${selectedInspection.advertisementPhotos.map(photo => `<img src="${photo}" />`).join('') || '<p>No photos</p>'}
+            ${selectedInspection.advertisementPhotos.map((photo) => `<img src="${photo}" />`).join('') || '<p>No photos</p>'}
           </div>
         </body>
       </html>
@@ -106,7 +130,6 @@ export default function Reports() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Reports</h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Vehicle list */}
         <div className="card p-5">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Select Vehicle</h2>
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
@@ -135,7 +158,6 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Report actions */}
         <div className="lg:col-span-2 card p-5">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Report Actions</h2>
           {!selectedVehicle || !selectedInspection ? (
@@ -149,6 +171,11 @@ export default function Reports() {
                 <p className="text-sm text-gray-600">
                   Stock: {selectedInspection.vehicleInfo.stockNumber || '—'}
                 </p>
+                {selectedInspection.notes && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    <span className="font-medium">Notes:</span> {selectedInspection.notes}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button

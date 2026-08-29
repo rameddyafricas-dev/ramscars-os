@@ -8,6 +8,12 @@ const menuItems = [
   { path: '/customers', label: 'Customers', icon: '👥' },
   { path: '/reports', label: 'Reports', icon: '📄' },
   { path: '/ai-insight', label: 'AI Insight', icon: '🤖' },
+  { path: '/data', label: 'Data', icon: '💾' },
+  { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/marketing', label: 'Marketing', icon: '📣' },
+  { path: '/media', label: 'Media', icon: '🖼️' },
+  { path: '/sales', label: 'Sales', icon: '💰' },
+  { path: '/finance', label: 'Finance', icon: '📊' },
 ]
 
 export default function SidebarLayout() {
