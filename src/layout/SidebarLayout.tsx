@@ -14,6 +14,9 @@ const menuItems = [
   { path: '/media', label: 'Media', icon: '🖼️' },
   { path: '/sales', label: 'Sales', icon: '💰' },
   { path: '/finance', label: 'Finance', icon: '📊' },
+  { path: '/consignment', label: 'Consignment', icon: '📝' },
+  { path: '/documents', label: 'Documents', icon: '📄' },
+  { path: '/reminders', label: 'Reminders', icon: '⏰' },
 ]
 
 export default function SidebarLayout() {

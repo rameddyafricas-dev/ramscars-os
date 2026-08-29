@@ -1,5 +1,5 @@
 const DB_NAME = 'ramscars-os'
-const DB_VERSION = 4
+const DB_VERSION = 7
 
 export interface DBStores {
   dealershipProfile: any
@@ -9,6 +9,9 @@ export interface DBStores {
   leads: any
   sales: any
   payments: any
+  consignments: any
+  documents: any
+  reminders: any
 }
 
 let db: IDBDatabase | null = null
@@ -48,6 +51,22 @@ function openDB(): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains('payments')) {
         const store = database.createObjectStore('payments', { keyPath: 'id' })
         store.createIndex('saleId', 'saleId', { unique: false })
+      }
+      if (!database.objectStoreNames.contains('consignments')) {
+        const store = database.createObjectStore('consignments', { keyPath: 'id' })
+        store.createIndex('vehicleId', 'vehicleId', { unique: false })
+        store.createIndex('status', 'status', { unique: false })
+      }
+      if (!database.objectStoreNames.contains('documents')) {
+        const store = database.createObjectStore('documents', { keyPath: 'id' })
+        store.createIndex('vehicleId', 'vehicleId', { unique: false })
+        store.createIndex('type', 'type', { unique: false })
+      }
+      if (!database.objectStoreNames.contains('reminders')) {
+        const store = database.createObjectStore('reminders', { keyPath: 'id' })
+        store.createIndex('vehicleId', 'vehicleId', { unique: false })
+        store.createIndex('dueDate', 'dueDate', { unique: false })
+        store.createIndex('completed', 'completed', { unique: false })
       }
     }
 

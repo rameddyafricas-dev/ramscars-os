@@ -14,6 +14,9 @@ import Marketing from './pages/Marketing'
 import DocumentsMedia from './pages/DocumentsMedia'
 import Sales from './pages/Sales'
 import Finance from './pages/Finance'
+import Consignment from './pages/Consignment'
+import Documents from './pages/Documents'
+import Reminders from './pages/Reminders'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
@@ -36,6 +39,9 @@ function App() {
             <Route path="/media" element={<DocumentsMedia />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/finance" element={<Finance />} />
+            <Route path="/consignment" element={<Consignment />} />
+            <Route path="/documents" element={<Documents />} />
+            <Route path="/reminders" element={<Reminders />} />
           </Route>
         </Routes>
       </BrowserRouter>

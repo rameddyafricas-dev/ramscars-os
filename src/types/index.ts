@@ -180,4 +180,12 @@ export interface Payment extends BaseEntity {
 
 export type ReportType = 'internal' | 'customer';
 export interface Report extends BaseEntity { type: ReportType; vehicleId?: string; saleId?: string; generatedAt: string; data: Record<string, unknown>; fileUrl?: string; }
+export interface Reminder extends BaseEntity {
+  title: string;
+  vehicleId?: string;
+  dueDate: string;
+  completed: boolean;
+  notes?: string;
+}
+
 export type ID = string;
