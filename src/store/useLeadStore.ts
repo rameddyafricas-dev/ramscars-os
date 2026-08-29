@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Lead } from '../types'
 
 interface LeadState {
@@ -28,6 +29,7 @@ export const useLeadStore = create<LeadState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('leads', lead)
+      await logAudit('Lead', lead.id, 'created', 'Lead created')
       set((state) => ({
         leads: [...state.leads, lead],
         isLoading: false,
@@ -40,6 +42,7 @@ export const useLeadStore = create<LeadState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('leads', lead)
+      await logAudit('Lead', lead.id, 'updated', 'Lead updated')
       set((state) => ({
         leads: state.leads.map((l) => (l.id === lead.id ? lead : l)),
         isLoading: false,

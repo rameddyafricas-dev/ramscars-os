@@ -17,6 +17,7 @@ import Finance from './pages/Finance'
 import Consignment from './pages/Consignment'
 import Documents from './pages/Documents'
 import Reminders from './pages/Reminders'
+import AuditLog from './pages/AuditLog'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
             <Route path="/consignment" element={<Consignment />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/reminders" element={<Reminders />} />
+            <Route path="/audit" element={<AuditLog />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import { generateStockNumber } from '../utils/vinDecoder'
 import type {
   Inspection,
@@ -193,6 +194,7 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('inspections', inspection)
+      await logAudit('Inspection', inspection.id, 'created', 'Inspection created')
       set((state) => ({
         inspections: [...state.inspections, inspection],
         activeInspection: inspection,
@@ -206,6 +208,7 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('inspections', inspection)
+      await logAudit('Inspection', inspection.id, 'updated', 'Inspection updated')
       set((state) => ({
         inspections: state.inspections.map((i) =>
           i.id === inspection.id ? inspection : i

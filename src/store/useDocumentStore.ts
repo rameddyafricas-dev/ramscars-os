@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord, deleteRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Document } from '../types'
 
 interface DocumentState {
@@ -29,6 +30,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('documents', document)
+      await logAudit('Document', document.id, 'created', 'Document created')
       set((state) => ({ documents: [...state.documents, document], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
@@ -38,6 +40,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('documents', document)
+      await logAudit('Document', document.id, 'updated', 'Document updated')
       set((state) => ({
         documents: state.documents.map((d) => (d.id === document.id ? document : d)),
         isLoading: false,
@@ -50,6 +53,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await deleteRecord('documents', id)
+      await logAudit('Document', id, 'deleted', 'Document deleted')
       set((state) => ({
         documents: state.documents.filter((d) => d.id !== id),
         isLoading: false,

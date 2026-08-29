@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Vehicle } from '../types'
 
 interface VehicleState {
@@ -28,6 +29,7 @@ export const useVehicleStore = create<VehicleState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('vehicles', vehicle)
+      await logAudit('Vehicle', vehicle.id, 'created', 'Vehicle created')
       set((state) => ({
         vehicles: [...state.vehicles, vehicle],
         isLoading: false,
@@ -40,6 +42,7 @@ export const useVehicleStore = create<VehicleState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('vehicles', vehicle)
+      await logAudit('Vehicle', vehicle.id, 'updated', 'Vehicle updated')
       set((state) => ({
         vehicles: state.vehicles.map((v) => (v.id === vehicle.id ? vehicle : v)),
         isLoading: false,

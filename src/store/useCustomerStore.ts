@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Customer } from '../types'
 
 interface CustomerState {
@@ -28,6 +29,7 @@ export const useCustomerStore = create<CustomerState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('customers', customer)
+      await logAudit('Customer', customer.id, 'created', 'Customer created')
       set((state) => ({
         customers: [...state.customers, customer],
         isLoading: false,
@@ -40,6 +42,7 @@ export const useCustomerStore = create<CustomerState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('customers', customer)
+      await logAudit('Customer', customer.id, 'updated', 'Customer updated')
       set((state) => ({
         customers: state.customers.map((c) =>
           c.id === customer.id ? customer : c

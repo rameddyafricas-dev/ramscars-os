@@ -17,6 +17,7 @@ const menuItems = [
   { path: '/consignment', label: 'Consignment', icon: '📝' },
   { path: '/documents', label: 'Documents', icon: '📄' },
   { path: '/reminders', label: 'Reminders', icon: '⏰' },
+  { path: '/audit', label: 'Audit Log', icon: '🧾' },
 ]
 
 export default function SidebarLayout() {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord, deleteRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Reminder } from '../types'
 
 interface ReminderState {
@@ -29,6 +30,7 @@ export const useReminderStore = create<ReminderState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('reminders', reminder)
+      await logAudit('Reminder', reminder.id, 'created', 'Reminder created')
       set((state) => ({ reminders: [...state.reminders, reminder], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
@@ -38,6 +40,7 @@ export const useReminderStore = create<ReminderState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('reminders', reminder)
+      await logAudit('Reminder', reminder.id, 'updated', 'Reminder updated')
       set((state) => ({
         reminders: state.reminders.map((r) => (r.id === reminder.id ? reminder : r)),
         isLoading: false,
@@ -50,6 +53,7 @@ export const useReminderStore = create<ReminderState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await deleteRecord('reminders', id)
+      await logAudit('Reminder', id, 'deleted', 'Reminder deleted')
       set((state) => ({
         reminders: state.reminders.filter((r) => r.id !== id),
         isLoading: false,

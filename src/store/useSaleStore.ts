@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { logAudit } from '../services/audit'
 import type { Sale, Payment } from '../types'
 
 interface SaleState {
@@ -41,6 +42,7 @@ export const useSaleStore = create<SaleState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('sales', sale)
+      await logAudit('Sale', sale.id, 'created', 'Sale created')
       set((state) => ({ sales: [...state.sales, sale], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
@@ -50,6 +52,7 @@ export const useSaleStore = create<SaleState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await updateRecord('sales', sale)
+      await logAudit('Sale', sale.id, 'updated', 'Sale updated')
       set((state) => ({
         sales: state.sales.map((s) => (s.id === sale.id ? sale : s)),
         isLoading: false,
@@ -62,6 +65,7 @@ export const useSaleStore = create<SaleState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await addRecord('payments', payment)
+      await logAudit('Sale', payment.saleId, 'payment_received', 'Payment received')
       set((state) => ({ payments: [...state.payments, payment], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })

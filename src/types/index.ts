@@ -188,4 +188,14 @@ export interface Reminder extends BaseEntity {
   notes?: string;
 }
 
+export type AuditAction = 'created' | 'updated' | 'deleted' | 'completed' | 'cancelled' | 'payment_received';
+
+export interface AuditLog extends BaseEntity {
+  entityType: string;
+  entityId: string;
+  action: AuditAction;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
 export type ID = string;
