@@ -11,11 +11,12 @@ export default function Profile() {
     email: '',
     address: '',
   })
+  const [saved, setSaved] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     loadProfile()
-  }, [])
+  }, [loadProfile])
 
   useEffect(() => {
     if (profile) {
@@ -30,63 +31,84 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     await saveProfile(form)
-    navigate('/')
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dealer Profile</h1>
+    <div className="max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Dealer Profile</h1>
+        <button
+          onClick={() => navigate('/')}
+          className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50"
+        >
+          ← Dashboard
+        </button>
+      </div>
+
       {isLoading ? (
-        <p>Loading...</p>
+        <div className="text-center py-12 text-gray-500">Loading profile...</div>
       ) : (
-        <form onSubmit={handleSubmit} className="card space-y-4">
+        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
+          <div className="bg-indigo-50 rounded-xl p-4 mb-2">
+            <p className="text-sm text-indigo-700">
+              This profile is used across all inspections and reports. Save it once.
+            </p>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Dealer Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dealer Name *</label>
             <input
               type="text"
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <input
-              type="text"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
-            />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="text"
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
             <input
               type="text"
               name="address"
               value={form.address}
               onChange={handleChange}
-              className="mt-1 w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
+
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-indigo-600 text-white px-5 py-2.5 rounded-xl shadow-soft hover:bg-indigo-700 transition-colors"
+              className="flex-1 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-colors"
             >
-              Save
+              {saved ? '✓ Saved' : 'Save Profile'}
             </button>
             <button
               type="button"

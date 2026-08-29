@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { decodeVIN } from '../utils/vinDecoder'
@@ -61,9 +62,11 @@ const mapDecodedTransmission = (transmission?: string): Transmission | undefined
   return 'other'
 }
 
-function ChecklistGroup({ title, items, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot }: {
+function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot }: {
   title: string
   items: any[]
+  totalSlots: number
+  filledSlots: number
   onResult: (id: string, result: 'pass' | 'advisory' | 'fail' | 'na') => void
   onNote: (id: string, note: string) => void
   onPhotoCapture: (itemId: string, index: number) => void
@@ -108,7 +111,7 @@ function ChecklistGroup({ title, items, onResult, onNote, onPhotoCapture, onPhot
   return (
     <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left">
-        <span className="text-sm font-semibold text-gray-800">{title}</span>
+        <span className="text-sm font-semibold text-gray-800">{title} <span className="text-xs font-normal text-indigo-600">({filledSlots}/{totalSlots})</span></span>
         <span className="text-gray-500">{open ? '−' : '+'}</span>
       </button>
       {open && (
@@ -231,11 +234,14 @@ export default function InspectionPage() {
   const [showCamera, setShowCamera] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
   useEffect(() => {
     const loadLatest = async () => {
+      const currentState = useInspectionStore.getState()
+      if (currentState.activeInspection) return
       await loadInspections()
       const latest = [...useInspectionStore.getState().inspections].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
       if (latest) setActiveInspection(latest.id)
@@ -453,17 +459,61 @@ export default function InspectionPage() {
     }
   }
 
+  const allChecklistItems = form ? form.checklist : [];
+  const overallTotalSlots = allChecklistItems.reduce((sum, item) => sum + (item.photoLabels?.length || 0), 0);
+  const overallFilledSlots = allChecklistItems.reduce((sum, item) => sum + (item.mediaIds?.filter((m) => m && m.trim() !== '').length || 0), 0);
+
   return (
     <div className="max-w-5xl mx-auto space-y-4 p-1">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Inspection</h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/inventory')}
+            className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50"
+          >
+            ← Inventory
+          </button>
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Inspection['status'] })} className="bg-white border border-gray-300 text-gray-800 px-4 py-2.5 rounded-xl shadow-sm">
             <option value="draft">Draft</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
           <button onClick={handleNewInspection} className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center" title="New Inspection">+</button>
+        </div>
+      </div>
+
+      {/* Inspection progress summary */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-gray-700">Inspection Progress</span>
+          <span className="text-sm font-bold text-indigo-600">{form.progress}%</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all" style={{ width: `${form.progress}%` }} />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <p className="text-xs text-gray-500">Vehicle</p>
+            <p className="font-semibold text-gray-800 truncate">
+              {form.vehicleInfo.year && form.vehicleInfo.make
+                ? `${form.vehicleInfo.year} ${form.vehicleInfo.make} ${form.vehicleInfo.model}`
+                : 'Not set'}
+            </p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <p className="text-xs text-gray-500">Stock</p>
+            <p className="font-semibold text-gray-800 truncate">{form.vehicleInfo.stockNumber || '—'}</p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <p className="text-xs text-gray-500">VIN</p>
+            <p className="font-semibold text-gray-800 truncate">{form.vehicleInfo.vin || '—'}</p>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl">
+            <p className="text-xs text-gray-500">Status</p>
+            <p className="font-semibold text-gray-800 capitalize">{form.status.replace('_', ' ')}</p>
+          </div>
         </div>
       </div>
 
@@ -514,7 +564,7 @@ export default function InspectionPage() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Faults">
+      <CollapsibleCard title={`Faults (${form.faults.length})`}>
         {form.faults.map((fault) => (
           <div key={fault.id} className="flex gap-2 mb-2">
             <input value={fault.description} onChange={(e) => handleFaultChange(fault.id, e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 flex-1" placeholder="Describe fault" />
@@ -524,7 +574,7 @@ export default function InspectionPage() {
         <button onClick={handleFaultAdd} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100">+ Add Fault</button>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Advertisement Photos">
+      <CollapsibleCard title={`Advertisement Photos (${form.advertisementPhotos.length})`}>
         <div className="flex gap-3 mb-3">
           <button onClick={openCamera} className="icon-btn" title="Take Photo"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg></button>
           <label className="icon-btn cursor-pointer" title="Upload from Gallery"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="hidden" /></label>
@@ -539,7 +589,7 @@ export default function InspectionPage() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Checklist">
+      <CollapsibleCard title={`Checklist (${overallFilledSlots}/${overallTotalSlots})`}>
   {(['documentation','exterior','interior','engine_bay','underbody'] as const).map((category) => {
     const titleMap: Record<string, string> = {
       documentation: 'Legal Documents',
@@ -548,11 +598,16 @@ export default function InspectionPage() {
       engine_bay: 'Engine Bay & Drive Train',
       underbody: 'Underbody & Suspension',
     };
+    const categoryItems = form.checklist.filter((c) => c.category === category);
+    const total = categoryItems.reduce((sum, item) => sum + (item.photoLabels?.length || 0), 0);
+    const filled = categoryItems.reduce((sum, item) => sum + (item.mediaIds?.filter((m) => m && m.trim() !== '').length || 0), 0);
     return (
       <ChecklistGroup
         key={category}
         title={titleMap[category]}
-        items={form.checklist.filter((c) => c.category === category)}
+        items={categoryItems}
+        totalSlots={total}
+        filledSlots={filled}
         onResult={handleChecklistResult}
         onNote={handleChecklistNote}
         onPhotoCapture={openCameraForChecklist}
