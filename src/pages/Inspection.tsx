@@ -74,10 +74,21 @@ function ChecklistGroup({ title, items, onResult, onNote, onPhotoCapture, onPhot
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState<{ type: 'photo' | 'slot'; itemId: string; index: number } | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLongPress = useRef(false)
 
   const startLongPress = (itemId: string, index: number) => {
+    isLongPress.current = false
     longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true
       setConfirm({ type: 'slot', itemId, index })
+    }, 600)
+  }
+
+  const startLongPressPhoto = (itemId: string, index: number) => {
+    isLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true
+      setConfirm({ type: 'photo', itemId, index })
     }, 600)
   }
 
@@ -124,33 +135,69 @@ function ChecklistGroup({ title, items, onResult, onNote, onPhotoCapture, onPhot
                   {item.photoLabels.map((label: string, idx: number) => {
                     const photo = item.mediaIds?.[idx]
                     const isUserSlot = idx >= (item.defaultPhotoCount ?? 0)
+
                     return (
-                      <div
-                        key={label + idx}
-                        className="relative"
-                        onTouchStart={isUserSlot && !photo ? () => startLongPress(item.id, idx) : undefined}
-                        onTouchEnd={isUserSlot && !photo ? cancelLongPress : undefined}
-                        onMouseDown={isUserSlot && !photo ? () => startLongPress(item.id, idx) : undefined}
-                        onMouseUp={isUserSlot && !photo ? cancelLongPress : undefined}
-                        onMouseLeave={isUserSlot && !photo ? cancelLongPress : undefined}
-                      >
+                      <div key={label + idx} className="relative">
                         {photo ? (
-                          <div className="relative group">
-                            <img src={photo} alt={label} className="photo-thumb h-16 w-16" onClick={() => onPhotoPreview(photo)} />
+                          <div
+                            className="relative"
+                            onTouchStart={() => startLongPressPhoto(item.id, idx)}
+                            onTouchEnd={cancelLongPress}
+                            onMouseDown={() => startLongPressPhoto(item.id, idx)}
+                            onMouseUp={cancelLongPress}
+                            onMouseLeave={cancelLongPress}
+                          >
+                            <img
+                              src={photo}
+                              alt={label}
+                              className="photo-thumb h-16 w-16"
+                              onClick={() => {
+                                if (isLongPress.current) {
+                                  isLongPress.current = false
+                                  return
+                                }
+                                onPhotoPreview(photo)
+                              }}
+                            />
                             <button
                               onClick={() => setConfirm({ type: 'photo', itemId: item.id, index: idx })}
                               className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow"
                             >
                               ✕
                             </button>
+                            {confirm?.type === 'photo' && confirm.itemId === item.id && confirm.index === idx && (
+                              <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-10">
+                                <button onClick={handleDeleteConfirm} className="bg-red-600 text-white text-xs px-2 py-1 rounded">Delete</button>
+                                <button onClick={() => setConfirm(null)} className="bg-white text-gray-800 text-xs px-2 py-1 rounded">Cancel</button>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <button
-                            onClick={() => onPhotoCapture(item.id, idx)}
-                            className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded-lg flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
-                          >
-                            {label}
-                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={() => {
+                                if (isLongPress.current) {
+                                  isLongPress.current = false
+                                  return
+                                }
+                                onPhotoCapture(item.id, idx)
+                              }}
+                              onTouchStart={isUserSlot ? () => startLongPress(item.id, idx) : undefined}
+                              onTouchEnd={isUserSlot ? cancelLongPress : undefined}
+                              onMouseDown={isUserSlot ? () => startLongPress(item.id, idx) : undefined}
+                              onMouseUp={isUserSlot ? cancelLongPress : undefined}
+                              onMouseLeave={isUserSlot ? cancelLongPress : undefined}
+                              className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded-lg flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
+                            >
+                              {label}
+                            </button>
+                            {confirm?.type === 'slot' && confirm.itemId === item.id && confirm.index === idx && (
+                              <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-10">
+                                <button onClick={handleDeleteConfirm} className="bg-red-600 text-white text-xs px-2 py-1 rounded">Delete</button>
+                                <button onClick={() => setConfirm(null)} className="bg-white text-gray-800 text-xs px-2 py-1 rounded">Cancel</button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     )
@@ -169,20 +216,6 @@ function ChecklistGroup({ title, items, onResult, onNote, onPhotoCapture, onPhot
               </button>
             </div>
           ))}
-        </div>
-      )}
-
-      {confirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-xl shadow-lg max-w-xs w-full">
-            <p className="font-medium text-gray-800 text-center">
-              {confirm.type === 'photo' ? 'Delete this photo? This cannot be recovered.' : 'Delete this photo slot?'}
-            </p>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setConfirm(null)} className="flex-1 bg-gray-200 px-4 py-2 rounded-lg">Cancel</button>
-              <button onClick={handleDeleteConfirm} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg">Delete</button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -376,7 +409,7 @@ export default function InspectionPage() {
     }) : prev)
   }
   
-  const handleChecklistPhotoDelete = (itemId: string, index: number) => {
+  const handleChecklistPhotoDelete = (itemId: string, index: number, mode: 'photo' | 'slot') => {
     setForm((prev) => prev ? ({
       ...prev,
       checklist: prev.checklist.map((c) => {
@@ -384,13 +417,15 @@ export default function InspectionPage() {
         const defaultCount = c.defaultPhotoCount ?? 0
         const photoLabels = [...(c.photoLabels || [])]
         const mediaIds = [...(c.mediaIds || [])]
-        if (index >= defaultCount) {
-          // user-added slot: delete entire slot
-          photoLabels.splice(index, 1)
-          mediaIds.splice(index, 1)
-        } else {
-          // default slot: clear photo only
+        if (mode === 'photo') {
+          // clear only the photo, keep slot
           mediaIds[index] = ''
+        } else {
+          // slot deletion: only user-added slots
+          if (index >= defaultCount) {
+            photoLabels.splice(index, 1)
+            mediaIds.splice(index, 1)
+          }
         }
         return { ...c, photoLabels, mediaIds }
       })
