@@ -1,12 +1,23 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
+import { useInspectionStore } from '../store/useInspectionStore'
 
 export default function Inventory() {
   const { vehicles, loadVehicles, isLoading } = useVehicleStore()
+  const { loadInspections, setActiveInspection } = useInspectionStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
     loadVehicles()
   }, [])
+
+  const handleEdit = async (inspectionId?: string) => {
+    if (!inspectionId) return
+    await loadInspections()
+    setActiveInspection(inspectionId)
+    navigate('/inspection')
+  }
 
   return (
     <div>
@@ -14,14 +25,14 @@ export default function Inventory() {
       {isLoading ? (
         <p>Loading...</p>
       ) : vehicles.length === 0 ? (
-        <div className="bg-white p-4 rounded shadow">
+        <div className="card p-4">
           <p className="text-gray-600">No vehicles in inventory yet</p>
           <p className="text-gray-600 mt-2">Vehicles from inspections will appear here.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {vehicles.map((vehicle) => (
-            <div key={vehicle.id} className="bg-white rounded shadow overflow-hidden">
+            <div key={vehicle.id} className="card overflow-hidden">
               <div className="h-48 bg-gray-200 flex items-center justify-center">
                 {vehicle.photos && vehicle.photos.length > 0 ? (
                   <img
@@ -46,6 +57,12 @@ export default function Inventory() {
                 )}
                 <p className="text-sm text-gray-600">Stock: {vehicle.stockNumber || '-'}</p>
                 <p className="text-sm text-gray-600">Status: {vehicle.status}</p>
+                <button
+                  onClick={() => handleEdit(vehicle.inspectionId)}
+                  className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+                >
+                  Edit
+                </button>
               </div>
             </div>
           ))}

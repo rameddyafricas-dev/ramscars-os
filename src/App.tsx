@@ -6,6 +6,7 @@ import Inventory from './pages/Inventory'
 import Customers from './pages/Customers'
 import Reports from './pages/Reports'
 import AIInsight from './pages/AIInsight'
+import Profile from './pages/Profile'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/ai-insight" element={<AIInsight />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
         </Routes>
       </BrowserRouter>

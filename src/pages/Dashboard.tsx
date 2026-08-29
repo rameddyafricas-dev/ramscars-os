@@ -34,7 +34,7 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="bg-white p-4 rounded shadow">
+          <div key={metric.label} className="card p-4">
             <div className="text-sm text-gray-600">{metric.label}</div>
             <div className="text-3xl font-bold">{metric.value}</div>
           </div>

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
+import { generateStockNumber } from '../utils/vinDecoder'
 import type {
   Inspection,
   ChecklistItem,
@@ -75,21 +76,57 @@ const emptyMarketing: MarketingInfo = {
 }
 
 const defaultChecklist: ChecklistItem[] = [
-  { id: 'doc1', category: 'documentation', label: 'VIN plate present', checked: false },
-  { id: 'doc2', category: 'documentation', label: 'Registration papers', checked: false },
-  { id: 'doc3', category: 'documentation', label: 'Service history', checked: false },
-  { id: 'ext1', category: 'exterior', label: 'Body panels aligned', checked: false },
-  { id: 'ext2', category: 'exterior', label: 'Paint condition', checked: false },
-  { id: 'ext3', category: 'exterior', label: 'Glass condition', checked: false },
-  { id: 'ext4', category: 'exterior', label: 'Tyre condition', checked: false },
-  { id: 'int1', category: 'interior', label: 'Seats condition', checked: false },
-  { id: 'int2', category: 'interior', label: 'Dashboard warning lights', checked: false },
-  { id: 'int3', category: 'interior', label: 'Odor', checked: false },
-  { id: 'int4', category: 'interior', label: 'Air conditioning', checked: false },
-  { id: 'eng1', category: 'engine_bay', label: 'Oil leaks', checked: false },
-  { id: 'eng2', category: 'engine_bay', label: 'Coolant level', checked: false },
-  { id: 'eng3', category: 'engine_bay', label: 'Battery condition', checked: false },
-  { id: 'eng4', category: 'engine_bay', label: 'Belts and hoses', checked: false },
+  // Legal Documents (10)
+  { id: 'legal1', category: 'documentation', label: 'Registration Certificate', checked: false, photoLabels: ['Registration Certificate'], defaultPhotoCount: 1 },
+  { id: 'legal2', category: 'documentation', label: "Owner's ID", checked: false, photoLabels: ['Front', 'Back'], defaultPhotoCount: 2 },
+  { id: 'legal3', category: 'documentation', label: 'VIN Number', checked: false, photoLabels: ['Dashboard VIN', 'Door Jamb Sticker VIN', 'Chassis VIN'], defaultPhotoCount: 3 },
+  { id: 'legal4', category: 'documentation', label: 'Engine Number', checked: false, photoLabels: ['Engine Number'], defaultPhotoCount: 1 },
+  { id: 'legal5', category: 'documentation', label: 'Registration Number', checked: false, photoLabels: ['Front Plate', 'Back Plate'], defaultPhotoCount: 2 },
+  { id: 'legal6', category: 'documentation', label: 'License Disc', checked: false, photoLabels: ['License Disc'], defaultPhotoCount: 1 },
+  { id: 'legal7', category: 'documentation', label: 'Roadworthy Certificate', checked: false, photoLabels: ['Roadworthy Certificate'], defaultPhotoCount: 1 },
+  { id: 'legal8', category: 'documentation', label: 'Service History', checked: false, photoLabels: ['Service History'], defaultPhotoCount: 1 },
+  { id: 'legal9', category: 'documentation', label: 'HPI Report', checked: false, photoLabels: ['HPI Report'], defaultPhotoCount: 1 },
+  { id: 'legal10', category: 'documentation', label: 'Signed Consignment Agreement', checked: false, photoLabels: ['Page 1', 'Page 2'], defaultPhotoCount: 2 },
+
+  // Exterior (10)
+  { id: 'ext1', category: 'exterior', label: 'Body Panels', checked: false, photoLabels: ['Bonnet', 'Rear Door', 'Front Left Door', 'Front Right Door', 'Rear Left Door', 'Rear Right Door', 'Left Fender', 'Right Fender', 'Roof'], defaultPhotoCount: 9 },
+  { id: 'ext2', category: 'exterior', label: 'Panel Alignment', checked: false, photoLabels: ['Bonnet', 'Rear Door', 'Front Left Door', 'Front Right Door', 'Rear Left Door', 'Rear Right Door', 'Left Fender', 'Right Fender', 'Roof'], defaultPhotoCount: 9 },
+  { id: 'ext3', category: 'exterior', label: 'Dents', checked: false, photoLabels: ['Dent Photo 1', 'Dent Photo 2'], defaultPhotoCount: 2 },
+  { id: 'ext4', category: 'exterior', label: 'Scratches', checked: false, photoLabels: ['Scratch Photo 1', 'Scratch Photo 2'], defaultPhotoCount: 2 },
+  { id: 'ext5', category: 'exterior', label: 'Paint & Rust', checked: false, photoLabels: ['Paint / Rust Photo'], defaultPhotoCount: 1 },
+  { id: 'ext6', category: 'exterior', label: 'Glass', checked: false, photoLabels: ['Front Windscreen', 'Rear Windscreen', 'Driver Door Glass', 'Passenger Door Glass', 'Rear Driver Door Glass', 'Rear Passenger Door Glass'], defaultPhotoCount: 6 },
+  { id: 'ext7', category: 'exterior', label: 'Mirrors', checked: false, photoLabels: ['Left Side Mirror', 'Right Side Mirror', 'Rearview Mirror'], defaultPhotoCount: 3 },
+  { id: 'ext8', category: 'exterior', label: 'Wipers', checked: false, photoLabels: ['Front Wipers', 'Rear Wiper'], defaultPhotoCount: 2 },
+  { id: 'ext9', category: 'exterior', label: 'Exterior Lights & Indicators', checked: false, photoLabels: ['Front Left Light', 'Front Right Light', 'Rear Left Light', 'Rear Right Light', 'Left Indicator', 'Right Indicator'], defaultPhotoCount: 6 },
+  { id: 'ext10', category: 'exterior', label: 'Tires & Wheels', checked: false, photoLabels: ['Front Left Tire', 'Front Right Tire', 'Rear Left Tire', 'Rear Right Tire'], defaultPhotoCount: 4 },
+
+  // Interior (9)
+  { id: 'int1', category: 'interior', label: 'Warning Lights & Instruments', checked: false, photoLabels: ['Instrument Cluster'], defaultPhotoCount: 1 },
+  { id: 'int2', category: 'interior', label: 'Interior Doors', checked: false, photoLabels: ['Driver Door Panel', 'Passenger Door Panel', 'Rear Driver Door Panel', 'Rear Passenger Door Panel'], defaultPhotoCount: 4 },
+  { id: 'int3', category: 'interior', label: 'Windows & Mirrors', checked: false, photoLabels: ['Driver Window', 'Passenger Window', 'Rear Driver Window', 'Rear Passenger Window'], defaultPhotoCount: 4 },
+  { id: 'int4', category: 'interior', label: 'Seats', checked: false, photoLabels: ['Driver Seat', 'Passenger Seat', 'Rear Seats'], defaultPhotoCount: 3 },
+  { id: 'int5', category: 'interior', label: 'Steering Wheel', checked: false, photoLabels: ['Steering Wheel'], defaultPhotoCount: 1 },
+  { id: 'int6', category: 'interior', label: 'Cabin Trim', checked: false, photoLabels: ['Dashboard Trim', 'Door Trim', 'Headliner'], defaultPhotoCount: 3 },
+  { id: 'int7', category: 'interior', label: 'Infotainment', checked: false, photoLabels: ['Infotainment Screen'], defaultPhotoCount: 1 },
+  { id: 'int8', category: 'interior', label: 'AC & Climate Control', checked: false, photoLabels: ['AC Controls'], defaultPhotoCount: 1 },
+  { id: 'int9', category: 'interior', label: 'Safety & Cabin Electronics', checked: false, photoLabels: ['Safety Controls'], defaultPhotoCount: 1 },
+
+  // Engine Bay & Drive Train (9)
+  { id: 'eng1', category: 'engine_bay', label: 'Overall Engine Condition', checked: false, photoLabels: ['Engine Bay Overview'], defaultPhotoCount: 1 },
+  { id: 'eng2', category: 'engine_bay', label: 'Fluid Levels', checked: false, photoLabels: ['Brake Fluid', 'Coolant', 'Washer Fluid'], defaultPhotoCount: 3 },
+  { id: 'eng3', category: 'engine_bay', label: 'Condition & Leaks', checked: false, photoLabels: ['Leak Photo 1', 'Leak Photo 2'], defaultPhotoCount: 2 },
+  { id: 'eng4', category: 'engine_bay', label: 'Wiring', checked: false, photoLabels: ['Wiring Photo'], defaultPhotoCount: 1 },
+  { id: 'eng5', category: 'engine_bay', label: 'Belts', checked: false, photoLabels: ['Belt Photo'], defaultPhotoCount: 1 },
+  { id: 'eng6', category: 'engine_bay', label: 'Hoses', checked: false, photoLabels: ['Hose Photo'], defaultPhotoCount: 1 },
+  { id: 'eng7', category: 'engine_bay', label: 'Battery Health', checked: false, photoLabels: ['Battery Photo'], defaultPhotoCount: 1 },
+  { id: 'eng8', category: 'engine_bay', label: 'Exhaust & Emissions', checked: false, photoLabels: ['Exhaust Photo'], defaultPhotoCount: 1 },
+  { id: 'eng9', category: 'engine_bay', label: 'Transmission', checked: false, photoLabels: ['Transmission Photo'], defaultPhotoCount: 1 },
+
+  // Underbody & Suspension (4)
+  { id: 'under1', category: 'underbody', label: 'Chassis & Frame Integrity', checked: false, photoLabels: ['Chassis Photo'], defaultPhotoCount: 1 },
+  { id: 'under2', category: 'underbody', label: 'Suspension', checked: false, photoLabels: ['Front Suspension', 'Rear Suspension'], defaultPhotoCount: 2 },
+  { id: 'under3', category: 'underbody', label: 'Steering', checked: false, photoLabels: ['Steering Rack Photo'], defaultPhotoCount: 1 },
+  { id: 'under4', category: 'underbody', label: 'Brakes', checked: false, photoLabels: ['Front Brakes', 'Rear Brakes'], defaultPhotoCount: 2 },
 ]
 
 function createEmptyInspection(): Inspection {
@@ -101,7 +138,10 @@ function createEmptyInspection(): Inspection {
     inspectionDate: now,
     items: [],
     ownerInfo: emptyOwnerInfo,
-    vehicleInfo: emptyVehicleInfo,
+    vehicleInfo: {
+      ...emptyVehicleInfo,
+      stockNumber: generateStockNumber(),
+    },
     faults: [],
     checklist: defaultChecklist,
     score: emptyScore,
@@ -135,7 +175,15 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
   loadInspections: async () => {
     set({ isLoading: true, error: null })
     try {
-      const inspections = await getAllRecords<Inspection>('inspections')
+      let inspections = await getAllRecords<Inspection>('inspections')
+      // Migrate old checklists to the new default if length differs or missing photoLabels
+      inspections = inspections.map((insp) => {
+        const needsMigration = !insp.checklist || insp.checklist.length !== defaultChecklist.length || insp.checklist.some((item) => !item.photoLabels)
+        return {
+          ...insp,
+          checklist: needsMigration ? defaultChecklist : insp.checklist,
+        }
+      })
       set({ inspections, isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })

@@ -112,7 +112,7 @@ export default function Customers() {
       <h1 className="text-2xl font-bold">Customers & Leads</h1>
 
       {/* Customers Section */}
-      <div className="bg-white p-4 rounded shadow">
+      <div className="card p-4">
         <h2 className="text-lg font-semibold mb-4">Add Customer</h2>
         <form onSubmit={handleCustomerSubmit} className="grid grid-cols-2 gap-4">
           <div>
@@ -191,7 +191,7 @@ export default function Customers() {
       </div>
 
       {/* Customers List */}
-      <div className="bg-white p-4 rounded shadow">
+      <div className="card p-4">
         <h2 className="text-lg font-semibold mb-2">Customers ({customers.length})</h2>
         {customerLoading ? (
           <p>Loading...</p>
@@ -220,7 +220,7 @@ export default function Customers() {
       </div>
 
       {/* Leads Section */}
-      <div className="bg-white p-4 rounded shadow">
+      <div className="card p-4">
         <h2 className="text-lg font-semibold mb-4">Add Lead</h2>
         <form onSubmit={handleLeadSubmit} className="grid grid-cols-2 gap-4">
           <div>
@@ -298,7 +298,7 @@ export default function Customers() {
       </div>
 
       {/* Leads List */}
-      <div className="bg-white p-4 rounded shadow">
+      <div className="card p-4">
         <h2 className="text-lg font-semibold mb-2">Leads ({leads.length})</h2>
         {leadLoading ? (
           <p>Loading...</p>

@@ -64,6 +64,8 @@ export interface InspectionItem {
   result: InspectionResult;
   notes?: string;
   mediaIds?: string[];
+  photoLabels?: string[];
+  defaultPhotoCount?: number;
 }
 
 export interface Fault {
@@ -73,9 +75,14 @@ export interface Fault {
 
 export interface ChecklistItem {
   id: string;
-  category: 'documentation' | 'exterior' | 'interior' | 'engine_bay';
+  category: 'documentation' | 'exterior' | 'interior' | 'engine_bay' | 'underbody';
   label: string;
   checked: boolean;
+  result?: 'pass' | 'advisory' | 'fail' | 'na';
+  note?: string;
+  mediaIds?: string[];
+  photoLabels?: string[];
+  defaultPhotoCount?: number;
 }
 
 export interface InspectionScore {
