@@ -610,12 +610,30 @@ export default function InspectionPage() {
           <select name="transmission" value={form.vehicleInfo.transmission} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="manual">Manual</option><option value="automatic">Automatic</option><option value="cvt">CVT</option><option value="other">Other</option></select>
           <select name="fuelType" value={form.vehicleInfo.fuelType} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="petrol">Petrol</option><option value="diesel">Diesel</option><option value="electric">Electric</option><option value="hybrid">Hybrid</option><option value="lpg">LPG</option><option value="other">Other</option></select>
           <input name="registrationNumber" placeholder="Registration Number" value={form.vehicleInfo.registrationNumber} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input name="licenseExpiry" type="date" value={form.vehicleInfo.licenseExpiry} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          {form.vehicleInfo.licenseExpiry && new Date(form.vehicleInfo.licenseExpiry) < new Date() && <span className="text-red-600 text-sm self-center">Expired</span>}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Licence Disc Validity</label>
+            <input name="licenseExpiry" type="date" value={form.vehicleInfo.licenseExpiry} onChange={handleVehicleChange} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" />
+            {form.vehicleInfo.licenseExpiry && (() => {
+              const expiry = new Date(form.vehicleInfo.licenseExpiry);
+              const now = new Date();
+              const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              const isExpired = diffDays < 0;
+              const isExpiringSoon = diffDays >= 0 && diffDays <= 30;
+              return (
+                <p className={`text-xs mt-1 font-medium ${isExpired ? "text-red-600" : isExpiringSoon ? "text-amber-600" : "text-green-600"}`}>
+                  {isExpired
+                    ? `Expired ${Math.abs(diffDays)} day(s) ago`
+                    : isExpiringSoon
+                      ? `Expires in ${diffDays} day(s)`
+                      : `Valid for ${diffDays} day(s)`}
+                </p>
+              );
+            })()}
+          </div>
           <input name="engineNumber" placeholder="Engine Number" value={form.vehicleInfo.engineNumber} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
           <select name="vehiclePapers" value={form.vehicleInfo.vehiclePapers} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="available">Papers Available</option><option value="pending">Papers Pending</option><option value="missing">Papers Missing</option></select>
           <input name="vehicleStatus" placeholder="Vehicle Status" value={form.vehicleInfo.vehicleStatus} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input name="stockNumber" placeholder="Stock Number" value={form.vehicleInfo.stockNumber} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50" />
+          <input name="stockNumber" placeholder="Stock Number" value={form.vehicleInfo.stockNumber} readOnly className="border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-100 text-gray-700 cursor-not-allowed" />
         </div>
       </CollapsibleCard>
 
