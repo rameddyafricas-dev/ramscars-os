@@ -356,21 +356,30 @@ export default function InspectionPage() {
   const handleFaultChange = (id: string, value: string) => setForm({ ...form, faults: form.faults.map((f) => (f.id === id ? { ...f, description: value } : f)) })
   const handleFaultDelete = (id: string) => setForm({ ...form, faults: form.faults.filter((f) => f.id !== id) })
   const handleScoreChange = (category: keyof InspectionScore, value: string) => setForm({ ...form, score: { ...form.score, [category]: value === '' ? null : Number(value) } })
-  const handleLocationChange = (field: 'dms' | 'decimal' | 'bay', value: string) => setForm({ ...form, location: { ...form.location, [field]: value } })
-  const clearLocation = () => setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
   const getGPS = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude
-        const lng = pos.coords.longitude
-        setForm({ ...form, location: { ...form.location, decimal: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, gps: { lat, lng } } })
-      })
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setForm({ ...form, location: { ...form.location, decimal: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, gps: { lat, lng } } });
+      });
     }
-  }
+  };
+
+  const showCoordinates = () => {
+    if (form.location.decimal) {
+      window.open(`https://www.google.com/maps?q=${form.location.decimal}`, '_blank');
+    }
+  };
+
   const showMap = () => {
-    if (form.location.gps) window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank')
-    else if (form.location.decimal) window.open(`https://www.google.com/maps?q=${form.location.decimal}`, '_blank')
-  }
+    if (form.location.gps) {
+      window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank');
+    }
+  };
+
+  const clearLocation = () => setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } });
+
   const handleFinancialChange = (field: keyof FinancialInfo, value: string) => {
     const updatedFinancial = { ...form.financial, [field]: value === '' ? null : Number(value) }
     const purchase = updatedFinancial.purchasePrice || 0
@@ -766,15 +775,40 @@ export default function InspectionPage() {
       </CollapsibleCard>
 
       <CollapsibleCard title="Location">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input placeholder="DMS coordinates" value={form.location.dms} onChange={(e) => handleLocationChange('dms', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input placeholder="Decimal" value={form.location.decimal} onChange={(e) => handleLocationChange('decimal', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input placeholder="Bay" value={form.location.bay || ''} onChange={(e) => handleLocationChange('bay', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <div className="flex gap-3">
-            <button onClick={getGPS} className="icon-btn" title="Get GPS"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button onClick={showMap} className="icon-btn" title="Show Map"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></button>
-            <button onClick={clearLocation} className="icon-btn" title="Clear"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Coordinates</label>
+              <input
+                placeholder="e.g. -26.195246, 28.034088"
+                value={form.location.decimal}
+                onChange={(e) => setForm({ ...form, location: { ...form.location, decimal: e.target.value } })}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bay (optional)</label>
+              <input
+                placeholder="Bay"
+                value={form.location.bay || ''}
+                onChange={(e) => setForm({ ...form, location: { ...form.location, bay: e.target.value } })}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
+              />
+            </div>
           </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button onClick={getGPS} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-200">Get Current GPS</button>
+            <button onClick={showCoordinates} className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl hover:bg-amber-200">Show Coordinates</button>
+            <button onClick={showMap} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Map</button>
+            <button onClick={clearLocation} className="bg-red-100 text-red-700 px-4 py-2 rounded-xl hover:bg-red-200">Clear</button>
+          </div>
+
+          {form.location.gps && (
+            <p className="text-sm text-gray-600">
+              Pinned: {form.location.gps.lat.toFixed(6)}, {form.location.gps.lng.toFixed(6)}
+            </p>
+          )}
         </div>
       </CollapsibleCard>
 
