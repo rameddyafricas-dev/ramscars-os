@@ -63,7 +63,7 @@ const mapDecodedTransmission = (transmission?: string): Transmission | undefined
   return 'other'
 }
 
-function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot }: {
+function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot, onGallery }: {
   title: string
   items: any[]
   totalSlots: number
@@ -74,9 +74,11 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
   onPhotoPreview: (src: string) => void
   onPhotoDelete: (itemId: string, index: number, mode: 'photo' | 'slot') => void
   onAddPhotoSlot: (itemId: string, label: string) => void
+  onGallery: (itemId: string, index: number, file: File) => void
 }) {
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState<{ type: 'photo' | 'slot'; itemId: string; index: number } | null>(null)
+  const [slotTarget, setSlotTarget] = useState<{ itemId: string; index: number } | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLongPress = useRef(false)
 
@@ -138,7 +140,8 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                 <div className="flex flex-wrap gap-2">
                   {item.photoLabels.map((label: string, idx: number) => {
                     const photo = item.mediaIds?.[idx]
-                    
+                    const isImage = photo && photo.startsWith('data:image')
+
                     return (
                       <div key={label + idx} className="relative">
                         {photo ? (
@@ -150,25 +153,17 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                             onMouseUp={cancelLongPress}
                             onMouseLeave={cancelLongPress}
                           >
-                            <img
-                              src={photo}
-                              alt={label}
-                              className="photo-thumb h-16 w-16"
-                              onClick={() => {
-                                if (isLongPress.current) {
-                                  isLongPress.current = false
-                                  return
-                                }
-                                onPhotoPreview(photo)
-                              }}
-                            />
+                            {isImage ? (
+                              <img src={photo} alt={label} className="photo-thumb h-16 w-16" onClick={() => setSlotTarget({ itemId: item.id, index: idx })} />
+                            ) : (
+                              <div
+                                className="h-16 w-16 bg-gray-200 rounded-lg flex items-center justify-center text-lg cursor-pointer"
+                                onClick={() => window.open(photo, '_blank')}
+                                title="Open document"
+                              >📄</div>
+                            )}
                             <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-16">{label}</p>
-                            <button
-                              onClick={() => setConfirm({ type: 'photo', itemId: item.id, index: idx })}
-                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow"
-                            >
-                              ✕
-                            </button>
+                            <button onClick={() => setConfirm({ type: 'photo', itemId: item.id, index: idx })} className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">✕</button>
                             {confirm?.type === 'photo' && confirm.itemId === item.id && confirm.index === idx && (
                               <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-10">
                                 <button onClick={handleDeleteConfirm} className="bg-red-600 text-white text-xs px-2 py-1 rounded">Delete</button>
@@ -179,13 +174,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                         ) : (
                           <div className="relative">
                             <button
-                              onClick={() => {
-                                if (isLongPress.current) {
-                                  isLongPress.current = false
-                                  return
-                                }
-                                onPhotoCapture(item.id, idx)
-                              }}
+                              onClick={() => setSlotTarget({ itemId: item.id, index: idx })}
                               onTouchStart={() => startLongPress(item.id, idx)}
                               onTouchEnd={cancelLongPress}
                               onMouseDown={() => startLongPress(item.id, idx)}
@@ -203,21 +192,30 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                             )}
                           </div>
                         )}
+
+                        {slotTarget && slotTarget.itemId === item.id && slotTarget.index === idx && (
+                          <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-20 p-1">
+                            <button onClick={() => { onPhotoCapture(item.id, idx); setSlotTarget(null) }} className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Camera</button>
+                            <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
+                              Gallery
+                              <input type="file" accept="image/*,application/pdf,.doc,.docx" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onGallery(item.id, idx, file); setSlotTarget(null); e.target.value = '' }} />
+                            </label>
+                            {photo && isImage && (
+                              <button onClick={() => { onPhotoPreview(photo); setSlotTarget(null) }} className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Preview</button>
+                            )}
+                            {photo && !isImage && (
+                              <button onClick={() => { window.open(photo, '_blank'); setSlotTarget(null) }} className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Open</button>
+                            )}
+                            <button onClick={() => setSlotTarget(null)} className="text-white text-xs mt-1 hover:underline">Cancel</button>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
                 </div>
               )}
 
-              <button
-                onClick={() => {
-                  const label = prompt('Photo label:')
-                  if (label) onAddPhotoSlot(item.id, label)
-                }}
-                className="text-xs text-indigo-600 hover:underline"
-              >
-                + Add Photo
-              </button>
+              <button onClick={() => { const label = prompt('Photo label:'); if (label) onAddPhotoSlot(item.id, label) }} className="text-xs text-indigo-600 hover:underline">+ Add Photo</button>
             </div>
           ))}
         </div>
@@ -225,8 +223,6 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
     </div>
   )
 }
-
-
 export default function InspectionPage() {
   const { activeInspection, loadInspections, newInspection, updateInspection, setActiveInspection } = useInspectionStore()
   const { vehicles, createVehicle, updateVehicle } = useVehicleStore()
@@ -427,6 +423,30 @@ export default function InspectionPage() {
     setCameraTarget(`check:${itemId}:${index}`)
     setShowCamera(true)
   }
+  const handleChecklistGallery = async (itemId: string, index: number, file: File) => {
+    let dataUrl = ''
+    if (file.type.startsWith('image/')) {
+      dataUrl = await compressImage(file)
+    } else {
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    }
+    setForm((prev) => prev ? ({
+      ...prev,
+      checklist: prev.checklist.map((c) => {
+        if (c.id !== itemId) return c
+        const media = [...(c.mediaIds || [])]
+        while (media.length <= index) media.push('')
+        media[index] = dataUrl
+        return { ...c, mediaIds: media }
+      })
+    }) : prev)
+  }
+
   const handleAddPhotoSlot = (itemId: string, label: string) => {
     setForm((prev) => prev ? ({
       ...prev,
@@ -710,6 +730,7 @@ export default function InspectionPage() {
         onPhotoPreview={setSelectedPhoto}
         onPhotoDelete={handleChecklistPhotoDelete}
         onAddPhotoSlot={handleAddPhotoSlot}
+        onGallery={handleChecklistGallery}
       />
     );
   })}
