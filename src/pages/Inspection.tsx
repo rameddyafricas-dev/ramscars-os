@@ -161,6 +161,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                                 onPhotoPreview(photo)
                               }}
                             />
+                            <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-16">{label}</p>
                             <button
                               onClick={() => setConfirm({ type: 'photo', itemId: item.id, index: idx })}
                               className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow"
@@ -233,6 +234,7 @@ export default function InspectionPage() {
   const [showCamera, setShowCamera] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
+  const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
@@ -296,7 +298,7 @@ export default function InspectionPage() {
         status: 'available',
         notes: '',
         stockNumber: form.vehicleInfo.stockNumber,
-        photos: form.advertisementPhotos,
+        photos: form.advertisementSlots?.filter((slot) => slot.photo).map((slot) => slot.photo) || form.advertisementPhotos,
         inspectionId: form.id,
         listingPrice: form.financial.sellingPrice ?? undefined,
         createdAt: existingVehicle?.createdAt || new Date().toISOString(),
@@ -389,18 +391,25 @@ export default function InspectionPage() {
     const channels = form.marketing.channels.includes(channel) ? form.marketing.channels.filter((c) => c !== channel) : [...form.marketing.channels, channel]
     setForm({ ...form, marketing: { ...form.marketing, channels } })
   }
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const openAdCamera = (slotId: string) => {
+    setCameraTarget(`ad:${slotId}:0`)
+    setShowCamera(true)
+  }
+
+  const handleAdGallery = async (e: React.ChangeEvent<HTMLInputElement>, slotId: string) => {
     const files = Array.from(e.target.files || [])
-    for (const file of files) {
-      const compressed = await compressImage(file)
-      setForm((prev) => prev ? { ...prev, advertisementPhotos: [...prev.advertisementPhotos, compressed] } : prev)
-    }
+    if (files.length === 0) return
+    const compressed = await compressImage(files[0])
+    setForm((prev) => prev ? ({
+      ...prev,
+      advertisementSlots: prev.advertisementSlots?.map((slot) => slot.id === slotId ? { ...slot, photo: compressed } : slot)
+    }) : prev)
+    setAdSlotTarget(null)
     e.target.value = ''
   }
-  const handlePhotoDelete = (index: number) => setForm((prev) => prev ? { ...prev, advertisementPhotos: prev.advertisementPhotos.filter((_, i) => i !== index) } : prev)
-  const openCamera = () => setShowCamera(true)
   const openCameraForChecklist = (itemId: string, index: number) => {
-    setCameraTarget(`${itemId}:${index}`)
+    setCameraTarget(`check:${itemId}:${index}`)
     setShowCamera(true)
   }
   const handleAddPhotoSlot = (itemId: string, label: string) => {
@@ -436,17 +445,32 @@ export default function InspectionPage() {
 
   const handleCameraCapture = (dataUrl: string) => {
     if (cameraTarget) {
-      const [itemId, indexStr] = cameraTarget.split(':')
-      const idx = Number(indexStr)
-      setForm((prev) => prev ? ({
-        ...prev,
-        checklist: prev.checklist.map((c) => {
-          if (c.id !== itemId) return c
-          const media = [...(c.mediaIds || [])]
-          media[idx] = dataUrl
-          return { ...c, mediaIds: media }
-        })
-      }) : prev)
+      const parts = cameraTarget.split(':')
+      if (parts.length >= 3) {
+        const targetType = parts[0]
+        const targetId = parts[1]
+        const idx = Number(parts[2])
+
+        if (targetType === 'ad') {
+          // advertisement slot
+          setForm((prev) => prev ? ({
+            ...prev,
+            advertisementSlots: prev.advertisementSlots?.map((slot) => slot.id === targetId ? { ...slot, photo: dataUrl } : slot)
+          }) : prev)
+          setAdSlotTarget(null)
+        } else if (targetType === 'check') {
+          // checklist item
+          setForm((prev) => prev ? ({
+            ...prev,
+            checklist: prev.checklist.map((c) => {
+              if (c.id !== targetId) return c
+              const media = [...(c.mediaIds || [])]
+              media[idx] = dataUrl
+              return { ...c, mediaIds: media }
+            })
+          }) : prev)
+        }
+      }
       setCameraTarget(null)
       setShowCamera(false)
     } else {
@@ -570,16 +594,54 @@ export default function InspectionPage() {
         <button onClick={handleFaultAdd} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100">+ Add Fault</button>
       </CollapsibleCard>
 
-      <CollapsibleCard title={`Advertisement Photos (${form.advertisementPhotos.length})`}>
-        <div className="flex gap-3 mb-3">
-          <button onClick={openCamera} className="icon-btn" title="Take Photo"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg></button>
-          <label className="icon-btn cursor-pointer" title="Upload from Gallery"><svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="hidden" /></label>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {form.advertisementPhotos.map((photo, idx) => (
-            <div key={idx} className="relative">
-              <img src={photo} alt={`Photo ${idx+1}`} className="photo-thumb" onClick={() => setSelectedPhoto(photo)} />
-              <button onClick={() => handlePhotoDelete(idx)} className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs">✕</button>
+      <CollapsibleCard title={`Advertisement Photos (${form.advertisementSlots?.filter((s) => s.photo).length || 0}/${form.advertisementSlots?.length || 0})`}>
+        <div className="flex flex-wrap gap-3">
+          {form.advertisementSlots?.map((slot) => (
+            <div key={slot.id} className="relative">
+              {slot.photo ? (
+                <div className="relative group">
+                  <img
+                    src={slot.photo}
+                    alt={slot.label}
+                    className="photo-thumb h-20 w-20"
+                    onClick={() => setAdSlotTarget(slot.id)}
+                  />
+                  <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-20">{slot.label}</p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAdSlotTarget(slot.id)}
+                  className="h-20 w-20 border-2 border-dashed border-indigo-300 rounded-xl flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
+                >
+                  {slot.label}
+                </button>
+              )}
+
+              {adSlotTarget === slot.id && (
+                <div className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center gap-1 z-10 p-1">
+                  <button
+                    onClick={() => openAdCamera(slot.id)}
+                    className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                  >
+                    Camera
+                  </button>
+                  <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
+                    Gallery
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleAdGallery(e, slot.id)}
+                    />
+                  </label>
+                  <button
+                    onClick={() => setAdSlotTarget(null)}
+                    className="text-white text-xs mt-1 hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

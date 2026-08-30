@@ -73,6 +73,12 @@ export interface Fault {
   description: string;
 }
 
+export interface AdvertisementSlot {
+  id: string;
+  label: string;
+  photo: string;
+}
+
 export interface ChecklistItem {
   id: string;
   category: 'documentation' | 'exterior' | 'interior' | 'engine_bay' | 'underbody';
@@ -138,6 +144,7 @@ export interface Inspection extends BaseEntity {
   marketing: MarketingInfo;
   progress: number;
   advertisementPhotos: string[];
+  advertisementSlots?: AdvertisementSlot[];
 }
 
 export type MediaType = 'advertisement' | 'evidence' | 'document' | 'other';

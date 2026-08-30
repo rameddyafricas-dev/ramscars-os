@@ -130,6 +130,22 @@ const defaultChecklist: ChecklistItem[] = [
   { id: 'under4', category: 'underbody', label: 'Brakes', checked: false, photoLabels: ['Front Brakes', 'Rear Brakes'], defaultPhotoCount: 2 },
 ]
 
+const defaultAdvertisementSlots = [
+  { id: 'adv_front', label: 'Front View', photo: '' },
+  { id: 'adv_rhs', label: 'RHS View', photo: '' },
+  { id: 'adv_rear', label: 'Rear View', photo: '' },
+  { id: 'adv_lhs', label: 'LHS View', photo: '' },
+  { id: 'adv_interior', label: 'Interior', photo: '' },
+  { id: 'adv_seats', label: 'Seats', photo: '' },
+  { id: 'adv_dashboard', label: 'Dashboard', photo: '' },
+  { id: 'adv_cluster', label: 'Cluster', photo: '' },
+  { id: 'adv_enginebay', label: 'Engine Bay', photo: '' },
+  { id: 'adv_enginerhs', label: 'Engine RHS', photo: '' },
+  { id: 'adv_enginelhs', label: 'Engine LHS', photo: '' },
+  { id: 'adv_boot', label: 'Boot', photo: '' },
+]
+
+
 function createEmptyInspection(): Inspection {
   const now = new Date().toISOString()
   return {
@@ -151,6 +167,7 @@ function createEmptyInspection(): Inspection {
     marketing: emptyMarketing,
     progress: 0,
     advertisementPhotos: [],
+    advertisementSlots: defaultAdvertisementSlots,
     createdAt: now,
     updatedAt: now,
   }
@@ -180,9 +197,11 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
       // Migrate old checklists to the new default if length differs or missing photoLabels
       inspections = inspections.map((insp) => {
         const needsMigration = !insp.checklist || insp.checklist.length !== defaultChecklist.length || insp.checklist.some((item) => !item.photoLabels)
+        const hasAdSlots = Array.isArray(insp.advertisementSlots) && insp.advertisementSlots.length === defaultAdvertisementSlots.length
         return {
           ...insp,
           checklist: needsMigration ? defaultChecklist : insp.checklist,
+          advertisementSlots: hasAdSlots ? insp.advertisementSlots : defaultAdvertisementSlots,
         }
       })
       set({ inspections, isLoading: false })
