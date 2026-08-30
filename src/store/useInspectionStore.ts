@@ -143,6 +143,7 @@ const defaultAdvertisementSlots = [
   { id: 'adv_enginerhs', label: 'Engine RHS', photo: '' },
   { id: 'adv_enginelhs', label: 'Engine LHS', photo: '' },
   { id: 'adv_boot', label: 'Boot', photo: '' },
+  { id: 'adv_video', label: 'Video', photo: '' },
 ]
 
 

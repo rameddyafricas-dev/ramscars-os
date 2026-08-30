@@ -7,6 +7,7 @@ import { compressImage } from '../utils/image'
 import { getModelSuggestions } from '../utils/makeModels'
 import CameraModal from '../components/CameraModal'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
+import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
 import type { FuelType, Transmission } from '../types'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
@@ -233,6 +234,7 @@ export default function InspectionPage() {
   const [decodedVIN, setDecodedVIN] = useState<DecodedVIN | null>(null)
   const [showCamera, setShowCamera] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -400,10 +402,23 @@ export default function InspectionPage() {
   const handleAdGallery = async (e: React.ChangeEvent<HTMLInputElement>, slotId: string) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
-    const compressed = await compressImage(files[0])
+    const file = files[0]
+    let dataUrl = ''
+
+    if (slotId === 'adv_video') {
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    } else {
+      dataUrl = await compressImage(file)
+    }
+
     setForm((prev) => prev ? ({
       ...prev,
-      advertisementSlots: prev.advertisementSlots?.map((slot) => slot.id === slotId ? { ...slot, photo: compressed } : slot)
+      advertisementSlots: prev.advertisementSlots?.map((slot) => slot.id === slotId ? { ...slot, photo: dataUrl } : slot)
     }) : prev)
     setAdSlotTarget(null)
     e.target.value = ''
@@ -600,12 +615,22 @@ export default function InspectionPage() {
             <div key={slot.id} className="relative">
               {slot.photo ? (
                 <div className="relative group">
-                  <img
-                    src={slot.photo}
-                    alt={slot.label}
-                    className="photo-thumb h-20 w-20"
-                    onClick={() => setAdSlotTarget(slot.id)}
-                  />
+                  {slot.id === 'adv_video' ? (
+                    <video
+                      src={slot.photo}
+                      className="photo-thumb h-20 w-20 object-cover cursor-pointer"
+                      onClick={() => setAdSlotTarget(slot.id)}
+                      controls={false}
+                      muted
+                    />
+                  ) : (
+                    <img
+                      src={slot.photo}
+                      alt={slot.label}
+                      className="photo-thumb h-20 w-20"
+                      onClick={() => setAdSlotTarget(slot.id)}
+                    />
+                  )}
                   <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-20">{slot.label}</p>
                 </div>
               ) : (
@@ -619,21 +644,34 @@ export default function InspectionPage() {
 
               {adSlotTarget === slot.id && (
                 <div className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center gap-1 z-10 p-1">
-                  <button
-                    onClick={() => openAdCamera(slot.id)}
-                    className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
-                  >
-                    Camera
-                  </button>
+                  {slot.id !== 'adv_video' && (
+                    <button
+                      onClick={() => openAdCamera(slot.id)}
+                      className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                    >
+                      Camera
+                    </button>
+                  )}
                   <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
                     Gallery
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={slot.id === 'adv_video' ? 'video/*' : 'image/*'}
                       className="hidden"
                       onChange={(e) => handleAdGallery(e, slot.id)}
                     />
                   </label>
+                  {slot.id === 'adv_video' && slot.photo && (
+                    <button
+                      onClick={() => {
+                        setSelectedVideo(slot.photo)
+                        setAdSlotTarget(null)
+                      }}
+                      className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                    >
+                      Preview
+                    </button>
+                  )}
                   <button
                     onClick={() => setAdSlotTarget(null)}
                     className="text-white text-xs mt-1 hover:underline"
@@ -740,6 +778,7 @@ export default function InspectionPage() {
 
       {showCamera && <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />}
       {selectedPhoto && <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />}
+      {selectedVideo && <VideoModal src={selectedVideo} onClose={() => setSelectedVideo(null)} />}
     </div>
   )
 }
