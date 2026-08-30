@@ -5,19 +5,13 @@ const menuItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
   { path: '/inspection', label: 'Inspection', icon: '🔍' },
   { path: '/inventory', label: 'Inventory', icon: '🚗' },
-  { path: '/customers', label: 'Customers', icon: '👥' },
-  { path: '/reports', label: 'Reports', icon: '📄' },
-  { path: '/ai-insight', label: 'AI Insight', icon: '🤖' },
-  { path: '/data', label: 'Data', icon: '💾' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' },
-  { path: '/marketing', label: 'Marketing', icon: '📣' },
-  { path: '/media', label: 'Media', icon: '🖼️' },
+  { path: '/customers', label: 'Customers & Leads', icon: '👥' },
   { path: '/sales', label: 'Sales', icon: '💰' },
-  { path: '/finance', label: 'Finance', icon: '📊' },
-  { path: '/consignment', label: 'Consignment', icon: '📝' },
+  { path: '/media', label: 'Media', icon: '🖼️' },
   { path: '/documents', label: 'Documents', icon: '📄' },
   { path: '/reminders', label: 'Reminders', icon: '⏰' },
   { path: '/audit', label: 'Audit Log', icon: '🧾' },
+  { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 
 export default function SidebarLayout() {

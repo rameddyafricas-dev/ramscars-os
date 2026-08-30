@@ -137,8 +137,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                 <div className="flex flex-wrap gap-2">
                   {item.photoLabels.map((label: string, idx: number) => {
                     const photo = item.mediaIds?.[idx]
-                    const isUserSlot = idx >= (item.defaultPhotoCount ?? 0)
-
+                    
                     return (
                       <div key={label + idx} className="relative">
                         {photo ? (
@@ -185,11 +184,11 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                                 }
                                 onPhotoCapture(item.id, idx)
                               }}
-                              onTouchStart={isUserSlot ? () => startLongPress(item.id, idx) : undefined}
-                              onTouchEnd={isUserSlot ? cancelLongPress : undefined}
-                              onMouseDown={isUserSlot ? () => startLongPress(item.id, idx) : undefined}
-                              onMouseUp={isUserSlot ? cancelLongPress : undefined}
-                              onMouseLeave={isUserSlot ? cancelLongPress : undefined}
+                              onTouchStart={() => startLongPress(item.id, idx)}
+                              onTouchEnd={cancelLongPress}
+                              onMouseDown={() => startLongPress(item.id, idx)}
+                              onMouseUp={cancelLongPress}
+                              onMouseLeave={cancelLongPress}
                               className="h-16 w-16 border-2 border-dashed border-indigo-300 rounded-lg flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
                             >
                               {label}
@@ -420,18 +419,15 @@ export default function InspectionPage() {
       ...prev,
       checklist: prev.checklist.map((c) => {
         if (c.id !== itemId) return c
-        const defaultCount = c.defaultPhotoCount ?? 0
         const photoLabels = [...(c.photoLabels || [])]
         const mediaIds = [...(c.mediaIds || [])]
         if (mode === 'photo') {
           // clear only the photo, keep slot
           mediaIds[index] = ''
         } else {
-          // slot deletion: only user-added slots
-          if (index >= defaultCount) {
-            photoLabels.splice(index, 1)
-            mediaIds.splice(index, 1)
-          }
+          // delete entire slot (allowed for all slots now)
+          photoLabels.splice(index, 1)
+          mediaIds.splice(index, 1)
         }
         return { ...c, photoLabels, mediaIds }
       })

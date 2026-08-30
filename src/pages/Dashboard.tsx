@@ -4,19 +4,24 @@ import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useLeadStore } from '../store/useLeadStore'
+import InsightsPanel from '../components/InsightsPanel'
+import { useSaleStore } from '../store/useSaleStore'
 
 export default function Dashboard() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
   const { customers, loadCustomers } = useCustomerStore()
   const { leads, loadLeads } = useLeadStore()
+  const { sales, payments, loadSales, loadPayments } = useSaleStore()
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
     loadCustomers()
     loadLeads()
-  }, [loadVehicles, loadInspections, loadCustomers, loadLeads])
+    loadSales()
+    loadPayments()
+  }, [loadVehicles, loadInspections, loadCustomers, loadLeads, loadSales, loadPayments])
 
   const stats = useMemo(() => {
     const sold = vehicles.filter((v) => v.status === 'sold').length
@@ -31,6 +36,10 @@ export default function Dashboard() {
 
     const totalVehicleValue = vehicles.reduce((sum, v) => sum + (v.listingPrice || 0), 0)
     const totalProfitPotential = inspections.reduce((sum, i) => sum + (i.financial.estimatedProfit || 0), 0)
+    const totalRevenue = sales.filter((s) => s.status === 'completed').reduce((sum, s) => sum + (s.salePrice || 0), 0)
+    const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    const totalDeposits = sales.reduce((sum, s) => sum + (s.deposit || 0), 0)
+    const outstanding = sales.filter((s) => s.status !== 'completed').reduce((sum, s) => sum + (s.salePrice || 0), 0) - totalPayments
 
     return {
       sold,
@@ -44,10 +53,14 @@ export default function Dashboard() {
       openLeads,
       totalVehicleValue,
       totalProfitPotential,
+      totalRevenue,
+      totalPayments,
+      totalDeposits,
+      outstanding,
       totalVehicles: vehicles.length,
       totalInspections: inspections.length,
     }
-  }, [vehicles, inspections, customers, leads])
+  }, [vehicles, inspections, customers, leads, sales, payments])
 
   const recentVehicles = useMemo(() => {
     return [...vehicles]
@@ -88,15 +101,31 @@ export default function Dashboard() {
       {/* Financial summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <div className="card p-5">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Financial Summary</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Finance Overview</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Total Vehicle Value</span>
+              <span className="text-gray-600">Revenue (Completed)</span>
+              <span className="font-semibold text-green-700">R {stats.totalRevenue.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Payments Received</span>
+              <span className="font-semibold text-indigo-600">R {stats.totalPayments.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Deposits</span>
+              <span className="font-semibold text-amber-600">R {stats.totalDeposits.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Outstanding</span>
+              <span className="font-semibold text-red-600">R {Math.max(stats.outstanding, 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Vehicle Value</span>
               <span className="font-semibold">R {stats.totalVehicleValue.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Total Profit Potential</span>
-              <span className="font-semibold text-green-700">R {stats.totalProfitPotential.toLocaleString()}</span>
+              <span className="text-gray-600">Profit Potential</span>
+              <span className="font-semibold text-purple-600">R {stats.totalProfitPotential.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -117,6 +146,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Smart Insights */}
+      <div className="card p-5 mb-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">AI Insight</h2>
+        <InsightsPanel />
       </div>
 
       {/* Recent vehicles */}
