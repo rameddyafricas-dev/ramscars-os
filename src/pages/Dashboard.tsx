@@ -3,25 +3,23 @@ import { Link } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useCustomerStore } from '../store/useCustomerStore'
-import { useLeadStore } from '../store/useLeadStore'
 import InsightsPanel from '../components/InsightsPanel'
+import AuditLogPanel from '../components/AuditLogPanel'
 import { useSaleStore } from '../store/useSaleStore'
 
 export default function Dashboard() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
   const { customers, loadCustomers } = useCustomerStore()
-  const { leads, loadLeads } = useLeadStore()
   const { sales, payments, loadSales, loadPayments } = useSaleStore()
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
     loadCustomers()
-    loadLeads()
     loadSales()
     loadPayments()
-  }, [loadVehicles, loadInspections, loadCustomers, loadLeads, loadSales, loadPayments])
+  }, [loadVehicles, loadInspections, loadCustomers, loadSales, loadPayments])
 
   const stats = useMemo(() => {
     const sold = vehicles.filter((v) => v.status === 'sold').length
@@ -32,7 +30,6 @@ export default function Dashboard() {
     const inspectionsDraft = inspections.filter((i) => i.status === 'draft').length
     const inspectionsInProgress = inspections.filter((i) => i.status === 'in_progress').length
     const totalCustomers = customers.length
-    const openLeads = leads.filter((l) => l.status === 'new' || l.status === 'contacted' || l.status === 'viewing' || l.status === 'negotiating').length
 
     const totalVehicleValue = vehicles.reduce((sum, v) => sum + (v.listingPrice || 0), 0)
     const totalProfitPotential = inspections.reduce((sum, i) => sum + (i.financial.estimatedProfit || 0), 0)
@@ -50,7 +47,6 @@ export default function Dashboard() {
       inspectionsDraft,
       inspectionsInProgress,
       totalCustomers,
-      openLeads,
       totalVehicleValue,
       totalProfitPotential,
       totalRevenue,
@@ -60,7 +56,7 @@ export default function Dashboard() {
       totalVehicles: vehicles.length,
       totalInspections: inspections.length,
     }
-  }, [vehicles, inspections, customers, leads, sales, payments])
+  }, [vehicles, inspections, customers, sales, payments])
 
   const recentVehicles = useMemo(() => {
     return [...vehicles]
@@ -73,9 +69,7 @@ export default function Dashboard() {
     { label: 'Available', value: stats.available, color: 'from-green-500 to-emerald-600' },
     { label: 'Reserved', value: stats.reserved, color: 'from-yellow-500 to-amber-600' },
     { label: 'Sold', value: stats.sold, color: 'from-red-500 to-rose-600' },
-    { label: 'Inspections', value: stats.totalInspections, color: 'from-blue-500 to-cyan-600' },
     { label: 'Customers', value: stats.totalCustomers, color: 'from-pink-500 to-fuchsia-600' },
-    { label: 'Open Leads', value: stats.openLeads, color: 'from-orange-500 to-amber-600' },
     { label: 'Withdrawn', value: stats.withdrawn, color: 'from-slate-500 to-gray-600' },
   ]
 
@@ -133,10 +127,6 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Inspection Status</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Draft</span>
-              <span className="font-semibold">{stats.inspectionsDraft}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-600">In Progress</span>
               <span className="font-semibold text-yellow-600">{stats.inspectionsInProgress}</span>
             </div>
@@ -152,6 +142,12 @@ export default function Dashboard() {
       <div className="card p-5 mb-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">AI Insight</h2>
         <InsightsPanel />
+      </div>
+
+      {/* Audit Log */}
+      <div className="card p-5 mb-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h2>
+        <AuditLogPanel />
       </div>
 
       {/* Recent vehicles */}

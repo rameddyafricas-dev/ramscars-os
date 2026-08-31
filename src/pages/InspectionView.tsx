@@ -52,7 +52,7 @@ export default function InspectionView() {
         </div>
       </div>
 
-      <CollapsibleCard title="Owner Information">
+      <CollapsibleCard defaultOpen title="Owner Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
           <p><span className="font-medium">Name:</span> {inspection.ownerInfo.name || '—'}</p>
           <p><span className="font-medium">Contact:</span> {inspection.ownerInfo.contactNumber || '—'}</p>
@@ -62,7 +62,7 @@ export default function InspectionView() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Vehicle Information">
+      <CollapsibleCard defaultOpen title="Vehicle Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
           <p><span className="font-medium">VIN:</span> {inspection.vehicleInfo.vin || '—'}</p>
           <p><span className="font-medium">Stock:</span> {inspection.vehicleInfo.stockNumber || '—'}</p>
@@ -77,7 +77,7 @@ export default function InspectionView() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title={`Faults (${inspection.faults.length})`}>
+      <CollapsibleCard defaultOpen title={`Faults (${inspection.faults.length})`}>
         {inspection.faults.length === 0 ? (
           <p className="text-gray-500 text-sm">No faults recorded.</p>
         ) : (
@@ -89,7 +89,7 @@ export default function InspectionView() {
         )}
       </CollapsibleCard>
 
-      <CollapsibleCard title={`Advertisement Photos (${inspection.advertisementPhotos.length})`}>
+      <CollapsibleCard defaultOpen title={`Advertisement Photos (${inspection.advertisementPhotos.length})`}>
         <div className="flex gap-2 flex-wrap">
           {inspection.advertisementPhotos.map((photo, idx) => (
             <img
@@ -103,7 +103,7 @@ export default function InspectionView() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title={`Checklist (${totalChecklistItems})`}>
+      <CollapsibleCard defaultOpen title={`Checklist (${totalChecklistItems})`}>
         {(['documentation','exterior','interior','engine_bay','underbody'] as const).map((category) => {
           const items = inspection.checklist.filter((c) => c.category === category)
           if (items.length === 0) return null
@@ -126,12 +126,18 @@ export default function InspectionView() {
         })}
       </CollapsibleCard>
 
-      <CollapsibleCard title="Financial Information">
+      <CollapsibleCard defaultOpen title="Financial Information">
         <div className="grid grid-cols-2 gap-2 text-sm">
           <p><span className="font-medium">Purchase:</span> R {inspection.financial.purchasePrice ?? '—'}</p>
           <p><span className="font-medium">Selling:</span> R {inspection.financial.sellingPrice ?? '—'}</p>
-          <p><span className="font-medium">Repair:</span> R {inspection.financial.repairCost ?? '—'}</p>
-          <p><span className="font-medium">Transport:</span> R {inspection.financial.transportCost ?? '—'}</p>
+          {inspection.financial.additionalCosts && inspection.financial.additionalCosts.length > 0 && (
+            <div className="col-span-2">
+              <p className="font-medium">Additional Costs</p>
+              {inspection.financial.additionalCosts.map((cost, idx) => (
+                <p key={idx} className="text-sm">{cost.label}: R {cost.amount.toLocaleString()}</p>
+              ))}
+            </div>
+          )}
           <p><span className="font-medium">Profit:</span> R {inspection.financial.estimatedProfit ?? '—'}</p>
           <p><span className="font-medium">Margin:</span> {inspection.financial.expectedMargin ?? '—'}%</p>
         </div>

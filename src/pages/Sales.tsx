@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useSaleStore } from '../store/useSaleStore'
@@ -9,8 +10,10 @@ export default function Sales() {
   const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
   const { customers, loadCustomers } = useCustomerStore()
   const { sales, payments, loadSales, loadPayments, createSale, createPayment, updateSale } = useSaleStore()
+  const [searchParams] = useSearchParams()
+  const initialVehicleId = searchParams.get('vehicle') || ''
 
-  const [vehicleId, setVehicleId] = useState('')
+  const [vehicleId, setVehicleId] = useState(initialVehicleId)
   const [buyerId, setBuyerId] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [deposit, setDeposit] = useState('')
@@ -28,9 +31,12 @@ export default function Sales() {
     loadPayments()
   }, [loadVehicles, loadCustomers, loadSales, loadPayments])
 
-  const availableVehicles = useMemo(() => vehicles.filter((v) => v.status !== 'sold'), [vehicles])
+  useEffect(() => {
+    if (initialVehicleId) setVehicleId(initialVehicleId)
+  }, [initialVehicleId])
 
   const selectedVehicle = vehicles.find((v) => v.id === vehicleId)
+  const vehicleSales = useMemo(() => sales.filter((s) => s.vehicleId === vehicleId), [sales, vehicleId])
   const selectedSale = sales.find((s) => s.id === activeSaleId)
   const salePayments = useMemo(() => payments.filter((p) => p.saleId === activeSaleId), [payments, activeSaleId])
 
@@ -55,8 +61,8 @@ export default function Sales() {
 
     await createSale(sale)
 
-    // Update vehicle status to reserved
-    if (selectedVehicle) {
+    // Update vehicle status to reserved if not already sold
+    if (selectedVehicle && selectedVehicle.status !== 'sold') {
       const updatedVehicle: Vehicle = {
         ...selectedVehicle,
         status: 'reserved',
@@ -66,7 +72,6 @@ export default function Sales() {
     }
 
     setActiveSaleId(sale.id)
-    setVehicleId('')
     setBuyerId('')
     setSalePrice('')
     setDeposit('')
@@ -120,7 +125,7 @@ export default function Sales() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Sales</h1>
         <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-          {sales.length} sale(s)
+          {vehicleSales.length} sale(s) for this vehicle
         </span>
       </div>
 
@@ -129,31 +134,37 @@ export default function Sales() {
         <div className="card p-5">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Create Sale</h2>
           <form onSubmit={handleCreateSale} className="space-y-4">
-            <select
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-              required
-            >
-              <option value="">Select vehicle</option>
-              {availableVehicles.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.year} {vehicle.make} {vehicle.model} — {vehicle.stockNumber || vehicle.vin}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+              <select
+                value={vehicleId}
+                onChange={(e) => setVehicleId(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-100 text-gray-700 cursor-not-allowed"
+                disabled
+              >
+                <option value="">Select vehicle</option>
+                {vehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.id}>
+                    {vehicle.year} {vehicle.make} {vehicle.model} — {vehicle.stockNumber || vehicle.vin}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <select
-              value={buyerId}
-              onChange={(e) => setBuyerId(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
-              required
-            >
-              <option value="">Select buyer</option>
-              {customers.filter((c) => c.role === 'buyer' || c.role === 'other').map((customer) => (
-                <option key={customer.id} value={customer.id}>{customer.name}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Buyer</label>
+              <select
+                value={buyerId}
+                onChange={(e) => setBuyerId(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
+                required
+              >
+                <option value="">Select buyer</option>
+                {customers.filter((c) => c.role === 'buyer' || c.role === 'other').map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -178,16 +189,22 @@ export default function Sales() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <select value={status} onChange={(e) => setStatus(e.target.value as SaleStatus)} className="border border-gray-300 rounded-xl px-4 py-2.5">
-                <option value="reserved">Reserved</option>
-                <option value="in_progress">In Progress</option>
-                <option value="agreed">Agreed</option>
-              </select>
-              <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)} className="border border-gray-300 rounded-xl px-4 py-2.5">
-                <option value="pending">Pending</option>
-                <option value="partial">Partial</option>
-                <option value="paid">Paid</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sale Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value as SaleStatus)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+                  <option value="reserved">Reserved</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="agreed">Agreed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+                  <option value="pending">Pending</option>
+                  <option value="partial">Partial</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
             </div>
 
             <textarea
@@ -204,12 +221,36 @@ export default function Sales() {
           </form>
         </div>
 
-        {/* Sale details + payments */}
+        {/* Sale details + payments + list */}
         <div className="card p-5">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Sale Details</h2>
-          {!selectedSale ? (
-            <p className="text-gray-500 text-sm">Select or create a sale to manage payments.</p>
-          ) : (
+
+          {vehicleSales.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Sales for this vehicle</h3>
+              <div className="space-y-2">
+                {vehicleSales.map((sale) => (
+                  <button
+                    key={sale.id}
+                    onClick={() => setActiveSaleId(sale.id)}
+                    className={`w-full text-left p-3 rounded-xl border ${
+                      activeSaleId === sale.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex justify-between">
+                      <span className="font-medium text-gray-800">
+                        {customers.find((c) => c.id === sale.buyerId)?.name || 'Unknown buyer'}
+                      </span>
+                      <span className="text-xs capitalize">{sale.status.replace('_', ' ')}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">R {sale.salePrice.toLocaleString()}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selectedSale ? (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex justify-between">
@@ -275,6 +316,8 @@ export default function Sales() {
                 </button>
               )}
             </div>
+          ) : (
+            <p className="text-gray-500 text-sm">Select a sale from the list or create a new sale.</p>
           )}
         </div>
       </div>

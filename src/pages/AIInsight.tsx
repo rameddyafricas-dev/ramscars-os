@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useCustomerStore } from '../store/useCustomerStore'
-import { useLeadStore } from '../store/useLeadStore'
 
 interface Insight {
   title: string
@@ -18,14 +17,12 @@ export default function AIInsight() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
   const { customers, loadCustomers } = useCustomerStore()
-  const { leads, loadLeads } = useLeadStore()
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
     loadCustomers()
-    loadLeads()
-  }, [loadVehicles, loadInspections, loadCustomers, loadLeads])
+  }, [loadVehicles, loadInspections, loadCustomers])
 
   const insights = useMemo<Insight[]>(() => {
     const result: Insight[] = []
@@ -103,30 +100,7 @@ export default function AIInsight() {
     }
 
     // Leads needing follow-up
-    const followUpLeads = leads.filter((l) => l.status === 'new' || l.status === 'contacted')
-    if (followUpLeads.length > 0) {
-      result.push({
-        title: `${followUpLeads.length} lead(s) need follow-up`,
-        description: 'Act quickly on new or contacted leads to improve conversion.',
-        severity: 'info',
-        actionLabel: 'Open Customers & Leads',
-        actionRoute: '/customers',
-      })
-    }
-
     // Customers with no leads
-    const customerIdsWithLeads = new Set(leads.map((l) => l.customerId))
-    const customersWithoutLeads = customers.filter((c) => !customerIdsWithLeads.has(c.id))
-    if (customersWithoutLeads.length > 0) {
-      result.push({
-        title: `${customersWithoutLeads.length} customer(s) have no active leads`,
-        description: 'Consider creating leads or follow-up tasks for these customers.',
-        severity: 'warning',
-        actionLabel: 'Manage Customers',
-        actionRoute: '/customers',
-      })
-    }
-
     // No insights
     if (result.length === 0) {
       result.push({
@@ -139,7 +113,7 @@ export default function AIInsight() {
     }
 
     return result
-  }, [vehicles, inspections, customers, leads])
+  }, [vehicles, inspections, customers])
 
   const severityStyles: Record<Insight['severity'], string> = {
     info: 'bg-blue-50 text-blue-800 border-blue-200',
@@ -199,8 +173,7 @@ export default function AIInsight() {
         <div className="card p-4">
           <p className="text-sm text-gray-500">Open Leads</p>
           <p className="text-2xl font-bold text-gray-900">
-            {leads.filter((l) => l.status === 'new' || l.status === 'contacted' || l.status === 'viewing').length}
-          </p>
+                      </p>
         </div>
       </div>
     </div>

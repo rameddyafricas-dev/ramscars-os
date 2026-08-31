@@ -5,7 +5,7 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import type { Vehicle } from '../types'
 
 export default function Inventory() {
-  const { vehicles, loadVehicles, isLoading, error } = useVehicleStore()
+  const { vehicles, loadVehicles, updateVehicle, isLoading, error } = useVehicleStore()
   const { loadInspections, setActiveInspection } = useInspectionStore()
   const navigate = useNavigate()
 
@@ -53,6 +53,24 @@ export default function Inventory() {
 
   const handleListing = (vehicleId: string) => {
     navigate(`/marketing?vehicle=${vehicleId}`)
+  }
+
+  const handleSales = (vehicleId: string) => {
+    navigate(`/sales?vehicle=${vehicleId}`)
+  }
+
+  const handleCustomers = (vehicleId: string) => {
+    navigate(`/customers?vehicle=${vehicleId}`)
+  }
+
+  const handleReminders = (vehicleId: string) => {
+    navigate(`/reminders?vehicle=${vehicleId}`)
+  }
+
+  const handleStatusChange = async (vehicleId: string, newStatus: Vehicle['status']) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId)
+    if (!vehicle) return
+    await updateVehicle({ ...vehicle, status: newStatus, updatedAt: new Date().toISOString() })
   }
 
   return (
@@ -110,68 +128,57 @@ export default function Inventory() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((vehicle) => (
-            <div key={vehicle.id} className="card overflow-hidden">
-              <div className="h-48 bg-gray-100 flex items-center justify-center relative">
-                {vehicle.photos && vehicle.photos.length > 0 ? (
-                  <img
-                    src={vehicle.photos[0]}
-                    alt={`${vehicle.make} ${vehicle.model}`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-gray-400">No photo</span>
-                )}
-                <span className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  vehicle.status === 'available' ? 'bg-green-100 text-green-800' :
-                  vehicle.status === 'reserved' ? 'bg-yellow-100 text-yellow-800' :
-                  vehicle.status === 'sold' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-200 text-gray-800'
-                }`}>
-                  {vehicle.status}
-                </span>
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg">
-                  {vehicle.year} {vehicle.make} {vehicle.model}
-                </h3>
-                <div className="mt-2 space-y-1 text-sm text-gray-600">
-                  <p><span className="font-medium">VIN:</span> {vehicle.vin || '-'}</p>
-                  <p><span className="font-medium">Mileage:</span> {vehicle.mileage.toLocaleString()} km</p>
-                  {vehicle.listingPrice !== undefined && (
-                    <p className="text-green-700 font-medium">R {vehicle.listingPrice.toLocaleString()}</p>
+          {filtered.map((vehicle) => {
+            const isSold = vehicle.status === 'sold';
+            return (
+              <div key={vehicle.id} className={`card overflow-hidden ${isSold ? 'opacity-60 pointer-events-none' : ''}`}>
+                <div className="h-48 bg-gray-100 flex items-center justify-center relative">
+                  {vehicle.photos && vehicle.photos.length > 0 ? (
+                    <img
+                      src={vehicle.photos[0]}
+                      alt={`${vehicle.make} ${vehicle.model}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-gray-400">No photo</span>
                   )}
-                  <p><span className="font-medium">Stock:</span> {vehicle.stockNumber || '-'}</p>
+                  <select
+                    value={vehicle.status}
+                    onChange={(e) => handleStatusChange(vehicle.id, e.target.value as Vehicle['status'])}
+                    disabled={isSold}
+                    className={`absolute top-2 right-2 z-10 bg-white border border-gray-300 rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${isSold ? 'bg-gray-100 text-gray-400' : ''}`}
+                  >
+                    <option value="available">Available</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="sold">Sold</option>
+                    <option value="withdrawn">Withdrawn</option>
+                  </select>
                 </div>
-                <div className="grid grid-cols-4 gap-2 mt-4">
-                  <button
-                    onClick={() => handleListing(vehicle.id)}
-                    className="bg-purple-50 text-purple-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-purple-100"
-                  >
-                    Listing
-                  </button>
-                  <button
-                    onClick={() => handleReports(vehicle.id)}
-                    className="bg-blue-50 text-blue-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-blue-100"
-                  >
-                    Reports
-                  </button>
-                  <button
-                    onClick={() => handleView(vehicle.inspectionId)}
-                    className="bg-amber-50 text-amber-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-amber-100"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleEdit(vehicle.inspectionId)}
-                    className="bg-indigo-50 text-indigo-700 px-2 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100"
-                  >
-                    Edit
-                  </button>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg">
+                    {vehicle.year} {vehicle.make} {vehicle.model}
+                  </h3>
+                  <div className="mt-2 space-y-1 text-sm text-gray-600">
+                    <p><span className="font-medium">VIN:</span> {vehicle.vin || '-'}</p>
+                    <p><span className="font-medium">Mileage:</span> {vehicle.mileage.toLocaleString()} km</p>
+                    {vehicle.listingPrice !== undefined && (
+                      <p className="text-green-700 font-medium">R {vehicle.listingPrice.toLocaleString()}</p>
+                    )}
+                    <p><span className="font-medium">Stock:</span> {vehicle.stockNumber || '-'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <button onClick={() => handleReminders(vehicle.id)} className="bg-cyan-50 text-cyan-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-cyan-100">Reminders</button>
+                    <button onClick={() => handleSales(vehicle.id)} className="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-100">Sales</button>
+                    <button onClick={() => handleCustomers(vehicle.id)} className="bg-pink-50 text-pink-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-pink-100">Customers</button>
+                    <button onClick={() => handleListing(vehicle.id)} className="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-purple-100">Listing</button>
+                    <button onClick={() => handleReports(vehicle.id)} className="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-100">Reports</button>
+                    <button onClick={() => handleView(vehicle.inspectionId)} className="bg-amber-50 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-amber-100">View</button>
+                    <button onClick={() => handleEdit(vehicle.inspectionId)} className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100">Edit</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

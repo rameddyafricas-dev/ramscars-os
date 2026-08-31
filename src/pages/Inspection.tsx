@@ -1,17 +1,16 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { generateAutoListing } from '../utils/autoListing'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useVehicleStore } from '../store/useVehicleStore'
-import { decodeVIN } from '../utils/vinDecoder'
+import { decodeVIN } from '../services/vinEngine'
 import { compressImage } from '../utils/image'
 import { getModelSuggestions } from '../utils/makeModels'
 import CameraModal from '../components/CameraModal'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
-import type { FuelType, Transmission } from '../types'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
-import type { DecodedVIN } from '../utils/vinDecoder'
+import type { DecodedVIN } from '../services/vinTypes'
 
 const initialScore: InspectionScore = {
   mechanical: null,
@@ -42,26 +41,6 @@ const commonColors = [
   'Black', 'White', 'Silver', 'Grey', 'Blue', 'Red', 'Green', 'Yellow',
   'Orange', 'Brown', 'Beige', 'Gold', 'Purple', 'Burgundy', 'Champagne', 'Pearl White'
 ]
-
-const mapDecodedFuelType = (engineType?: string): FuelType | undefined => {
-  if (!engineType) return undefined
-  const lower = engineType.toLowerCase()
-  if (lower === 'petrol') return 'petrol'
-  if (lower === 'diesel') return 'diesel'
-  if (lower === 'electric') return 'electric'
-  if (lower === 'hybrid') return 'hybrid'
-  if (lower === 'lpg') return 'lpg'
-  return 'other'
-}
-
-const mapDecodedTransmission = (transmission?: string): Transmission | undefined => {
-  if (!transmission) return undefined
-  const lower = transmission.toLowerCase()
-  if (lower === 'automatic') return 'automatic'
-  if (lower === 'manual') return 'manual'
-  if (lower === 'cvt') return 'cvt'
-  return 'other'
-}
 
 function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot, onGallery }: {
   title: string
@@ -225,7 +204,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
 }
 export default function InspectionPage() {
   const { activeInspection, loadInspections, newInspection, updateInspection, setActiveInspection } = useInspectionStore()
-  const { vehicles, createVehicle, updateVehicle } = useVehicleStore()
+  const { vehicles, createVehicle, updateVehicle, loadVehicles } = useVehicleStore()
   const [form, setForm] = useState<Inspection | null>(activeInspection)
   const [decodedVIN, setDecodedVIN] = useState<DecodedVIN | null>(null)
   const [showCamera, setShowCamera] = useState(false)
@@ -233,7 +212,6 @@ export default function InspectionPage() {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
-  const navigate = useNavigate()
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
@@ -246,7 +224,8 @@ export default function InspectionPage() {
       if (latest) setActiveInspection(latest.id)
     }
     loadLatest()
-  }, [loadInspections, setActiveInspection])
+    loadVehicles()
+  }, [loadInspections, setActiveInspection, loadVehicles])
 
   useEffect(() => {
     setForm(activeInspection)
@@ -277,12 +256,23 @@ export default function InspectionPage() {
     return () => clearTimeout(timer)
   }, [form, activeInspection, updateInspection])
 
-  const handleNewInspection = async () => {
-    if (form) {
-      await updateInspection(form)
-      const existingVehicle = vehicles.find((v) => v.inspectionId === form.id)
+  useEffect(() => {
+    if (!form || !form.vehicleInfo.make || !form.vehicleInfo.model) return;
+    const auto = generateAutoListing(form.vehicleInfo, form.marketing);
+    if (auto.title !== form.marketing.title || auto.description !== form.marketing.description || auto.hashtags.join(',') !== form.marketing.hashtags.join(',') || auto.seoKeywords.join(',') !== form.marketing.seoKeywords.join(',')) {
+      setForm((prev) => prev ? { ...prev, marketing: auto } : prev)
+    }
+  }, [form?.vehicleInfo.make, form?.vehicleInfo.model, form?.vehicleInfo.year, form?.vehicleInfo.bodyType, form?.vehicleInfo.fuelType, form?.vehicleInfo.mileage, form?.vehicleInfo.transmission, form?.vehicleInfo.color])
+
+  useEffect(() => {
+    if (!form || !form.id) return;
+    const timer = setTimeout(async () => {
+      const existingVehicle = useVehicleStore.getState().vehicles.find((v) => v.inspectionId === form.id);
+      if (!form.vehicleInfo.make && !form.vehicleInfo.model && !form.vehicleInfo.vin) return;
+
+      const now = new Date().toISOString();
       const vehicleData: Vehicle = {
-        id: existingVehicle?.id || `veh_${Date.now()}`,
+        id: existingVehicle?.id || `veh_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         vin: form.vehicleInfo.vin,
         registration: form.vehicleInfo.registrationNumber,
         make: form.vehicleInfo.make,
@@ -293,20 +283,83 @@ export default function InspectionPage() {
         fuelType: form.vehicleInfo.fuelType,
         transmission: form.vehicleInfo.transmission,
         classification: form.vehicleInfo.bodyType,
-        status: 'available',
-        notes: '',
+        status: existingVehicle?.status || 'available',
+        notes: existingVehicle?.notes || '',
         stockNumber: form.vehicleInfo.stockNumber,
-        photos: form.advertisementSlots?.filter((slot) => slot.photo).map((slot) => slot.photo) || form.advertisementPhotos,
+        photos: form.advertisementSlots && form.advertisementSlots.length > 0 ? form.advertisementSlots.filter((slot) => slot.photo).map((slot) => slot.photo) : form.advertisementPhotos,
         inspectionId: form.id,
         listingPrice: form.financial.sellingPrice ?? undefined,
-        createdAt: existingVehicle?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: existingVehicle?.createdAt || now,
+        updatedAt: now,
+      };
+
+      if (existingVehicle) {
+        await updateVehicle(vehicleData);
+      } else {
+        await createVehicle(vehicleData);
       }
-      if (existingVehicle) await updateVehicle(vehicleData)
-      else await createVehicle(vehicleData)
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [form, createVehicle, updateVehicle]);
+
+  const saveCurrentInspectionToInventory = async () => {
+    if (!form) return;
+    await updateInspection(form);
+    const existingVehicle = vehicles.find((v) => v.inspectionId === form.id);
+    const vehicleData: Vehicle = {
+      id: existingVehicle?.id || `veh_${Date.now()}`,
+      vin: form.vehicleInfo.vin,
+      registration: form.vehicleInfo.registrationNumber,
+      make: form.vehicleInfo.make,
+      model: form.vehicleInfo.model,
+      year: Number(form.vehicleInfo.year) || 0,
+      mileage: Number(form.vehicleInfo.mileage) || 0,
+      colour: form.vehicleInfo.color,
+      fuelType: form.vehicleInfo.fuelType,
+      transmission: form.vehicleInfo.transmission,
+      classification: form.vehicleInfo.bodyType,
+      status: existingVehicle?.status || 'available',
+      notes: '',
+      ownerName: form.ownerInfo.name,
+      stockNumber: form.vehicleInfo.stockNumber,
+      photos: form.advertisementSlots?.filter((slot) => slot.photo).map((slot) => slot.photo) || form.advertisementPhotos,
+      inspectionId: form.id,
+      listingPrice: form.financial.sellingPrice ?? undefined,
+      createdAt: existingVehicle?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (existingVehicle) await updateVehicle(vehicleData);
+    else await createVehicle(vehicleData);
+  };
+
+  const handleSaveInspection = async () => {
+    await saveCurrentInspectionToInventory();
+  };
+
+  const isCurrentInspectionEmpty = () => {
+    if (!form) return true;
+    const hasOwner = form.ownerInfo.name || form.ownerInfo.contactNumber || form.ownerInfo.idNumber || form.ownerInfo.email;
+    const hasVehicle = form.vehicleInfo.make || form.vehicleInfo.model || form.vehicleInfo.vin || form.vehicleInfo.registrationNumber || form.vehicleInfo.engineNumber;
+    const hasPhotos = (form.advertisementSlots && form.advertisementSlots.some((slot) => slot.photo)) || form.advertisementPhotos.length > 0;
+    const hasFaults = form.faults.length > 0;
+    const hasChecklist = form.checklist.some((item) => item.result || item.note || (item.mediaIds && item.mediaIds.some((media) => media)));
+    return !(hasOwner || hasVehicle || hasPhotos || hasFaults || hasChecklist);
+  };
+
+  const handleNewInspection = async () => {
+    if (!form) {
+      // No current inspection yet, create the first one
+      await newInspection();
+      return;
     }
-    await newInspection()
-  }
+    if (isCurrentInspectionEmpty()) {
+      alert('Current inspection is empty. Please add some data before starting a new inspection.');
+      return;
+    }
+    await saveCurrentInspectionToInventory();
+    await newInspection();
+  };
 
   if (!form) {
     return (
@@ -325,21 +378,17 @@ export default function InspectionPage() {
     if (vin.length > 0) {
       const decoded = decodeVIN(vin)
       setDecodedVIN(decoded)
-      if (decoded.make !== 'Unknown') {
+      if (decoded.manufacturer.value !== 'Unknown') {
         setForm((prev) => prev ? ({
           ...prev,
           vehicleInfo: {
             ...prev.vehicleInfo,
-            make: decoded.make,
-            model: decoded.model !== 'Unknown' ? decoded.model : '',
-            year: decoded.year || prev.vehicleInfo.year,
-            bodyType: decoded.bodyType || prev.vehicleInfo.bodyType,
-            transmission: mapDecodedTransmission(decoded.transmission) || prev.vehicleInfo.transmission,
-            fuelType: mapDecodedFuelType(decoded.engineType) || prev.vehicleInfo.fuelType,
+            make: decoded.manufacturer.value,
+            year: decoded.modelYear.value !== 'Unknown' ? decoded.modelYear.value : prev.vehicleInfo.year,
           },
         }) : prev)
-      } else if (decoded.year) {
-        setForm((prev) => prev ? ({ ...prev, vehicleInfo: { ...prev.vehicleInfo, year: decoded.year } }) : prev)
+      } else if (decoded.modelYear.value !== 'Unknown') {
+        setForm((prev) => prev ? ({ ...prev, vehicleInfo: { ...prev.vehicleInfo, year: decoded.modelYear.value } }) : prev)
       }
     } else {
       setDecodedVIN(null)
@@ -378,25 +427,71 @@ export default function InspectionPage() {
     }
   };
 
-  const clearLocation = () => setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } });
+  const clearLocation = () => {
+    if (window.confirm('Clear location?')) {
+      setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
+    }
+  };
+
+  const recalcFinancial = (financial: FinancialInfo): FinancialInfo => {
+    const purchase = financial.purchasePrice || 0;
+    const selling = financial.sellingPrice || 0;
+    const additionalTotal = (financial.additionalCosts || []).reduce((sum, c) => sum + (c.amount || 0), 0);
+    if (purchase > 0 && selling > 0) {
+      financial.estimatedProfit = selling - purchase - additionalTotal;
+      financial.expectedMargin = (financial.estimatedProfit / purchase) * 100;
+    } else {
+      financial.estimatedProfit = null;
+      financial.expectedMargin = null;
+    }
+    return financial;
+  };
 
   const handleFinancialChange = (field: keyof FinancialInfo, value: string) => {
-    const updatedFinancial = { ...form.financial, [field]: value === '' ? null : Number(value) }
-    const purchase = updatedFinancial.purchasePrice || 0
-    const selling = updatedFinancial.sellingPrice || 0
-    const repair = updatedFinancial.repairCost || 0
-    const transport = updatedFinancial.transportCost || 0
-    if (purchase > 0 && selling > 0) {
-      updatedFinancial.estimatedProfit = selling - purchase - repair - transport
-      updatedFinancial.expectedMargin = (updatedFinancial.estimatedProfit / purchase) * 100
-    }
-    setForm({ ...form, financial: updatedFinancial })
+    setForm((prev) => prev ? {
+      ...prev,
+      financial: recalcFinancial({
+        ...prev.financial,
+        [field]: value === '' ? null : Number(value),
+      })
+    } : prev);
+  };
+
+  const handleAddAdditionalCost = () => {
+    const label = window.prompt('Specify cost label:');
+    if (!label) return;
+    const amountStr = window.prompt('Amount:');
+    const amount = Number(amountStr);
+    if (isNaN(amount)) return;
+    const newCost = { label, amount };
+    setForm((prev) => prev ? {
+      ...prev,
+      financial: recalcFinancial({
+        ...prev.financial,
+        additionalCosts: [...(prev.financial.additionalCosts || []), newCost],
+      })
+    } : prev);
+  };
+
+  const handleRemoveAdditionalCost = (index: number) => {
+    if (!window.confirm('Remove this cost?')) return;
+    setForm((prev) => prev ? {
+      ...prev,
+      financial: recalcFinancial({
+        ...prev.financial,
+        additionalCosts: prev.financial.additionalCosts?.filter((_, i) => i !== index),
+      })
+    } : prev);
   }
-  const handleMarketingChange = (field: 'title' | 'description', value: string) => setForm({ ...form, marketing: { ...form.marketing, [field]: value } })
-  const handleHashtagsChange = (value: string) => setForm({ ...form, marketing: { ...form.marketing, hashtags: value.split(',').map((s) => s.trim()).filter(Boolean) } })
-  const handleChannelsToggle = (channel: string) => {
-    const channels = form.marketing.channels.includes(channel) ? form.marketing.channels.filter((c) => c !== channel) : [...form.marketing.channels, channel]
-    setForm({ ...form, marketing: { ...form.marketing, channels } })
+
+  const handleDeleteAdMedia = (slotId: string) => {
+    setForm((prev) => prev ? ({
+      ...prev,
+      advertisementSlots: prev.advertisementSlots?.map((slot) =>
+        slot.id === slotId ? { ...slot, photo: '' } : slot
+      )
+    }) : prev)
+    setAdSlotTarget(null)
   }
 
   const openAdCamera = (slotId: string) => {
@@ -532,17 +627,11 @@ export default function InspectionPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Inspection</h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/inventory')}
-            className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50"
-          >
-            ← Inventory
-          </button>
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Inspection['status'] })} className="bg-white border border-gray-300 text-gray-800 px-4 py-2.5 rounded-xl shadow-sm">
-            <option value="draft">Draft</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
+          <button onClick={handleSaveInspection} className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">Save</button>
           <button onClick={handleNewInspection} className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center" title="New Inspection">+</button>
         </div>
       </div>
@@ -591,21 +680,31 @@ export default function InspectionPage() {
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard title="Vehicle Information">
+            <CollapsibleCard title="Vehicle Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <select name="vehicleType" value={form.vehicleInfo.vehicleType} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="runner">Runner</option><option value="non-runner">Non-Runner</option></select>
+          <select name="vehicleType" value={form.vehicleInfo.vehicleType} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <option value="runner">Runner</option>
+            <option value="non-runner">Non-Runner</option>
+          </select>
           <input name="vin" placeholder="VIN" value={form.vehicleInfo.vin} onChange={handleVINChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
+
           {decodedVIN && (
             <div className="col-span-full bg-gray-50 p-3 rounded-xl text-sm space-y-1">
-              <p><span className="font-medium">Make:</span> {decodedVIN.make}</p>
-              <p><span className="font-medium">Model:</span> {decodedVIN.model !== 'Unknown' ? decodedVIN.model : 'Not detected'}</p>
-              <p><span className="font-medium">Country:</span> {decodedVIN.country} ({decodedVIN.region})</p>
-              <p><span className="font-medium">Year:</span> {decodedVIN.year || 'Unknown'}</p>
-              {decodedVIN.bodyType && <p><span className="font-medium">Body:</span> {decodedVIN.bodyType}</p>}
-              {decodedVIN.engineType && <p><span className="font-medium">Engine:</span> {decodedVIN.engineType}</p>}
-              {decodedVIN.transmission && <p><span className="font-medium">Transmission:</span> {decodedVIN.transmission}</p>}
+              <p><span className="font-medium">VIN Type:</span> {decodedVIN.vinType}</p>
+              <p><span className="font-medium">Status:</span> {decodedVIN.vinStatus}</p>
+              <p><span className="font-medium">Check Digit:</span> {decodedVIN.validation.checksumApplicable ? (decodedVIN.validation.checksumValid ? 'Valid' : 'Failed') : 'Not Applicable'}</p>
+              <p><span className="font-medium">Manufacturer:</span> {decodedVIN.manufacturer.value} (Confidence: {decodedVIN.manufacturer.level}, Score: {decodedVIN.manufacturer.score})</p>
+              <p><span className="font-medium">Country:</span> {decodedVIN.country.value} ({decodedVIN.region})</p>
+              <p><span className="font-medium">Model Year:</span> {decodedVIN.modelYear.value}{decodedVIN.modelYearCandidates.length > 1 ? ' (Candidates: ' + decodedVIN.modelYearCandidates.join(', ') + ')' : ''}</p>
+              {decodedVIN.model && decodedVIN.model.value !== 'Unknown' && <p><span className="font-medium">Model:</span> {decodedVIN.model.value}</p>}
+              {decodedVIN.engine && decodedVIN.engine.value !== 'Unknown' && <p><span className="font-medium">Engine:</span> {decodedVIN.engine.value}</p>}
+              {decodedVIN.bodyStyle && decodedVIN.bodyStyle.value !== 'Unknown' && <p><span className="font-medium">Body:</span> {decodedVIN.bodyStyle.value}</p>}
+              {decodedVIN.transmission && decodedVIN.transmission.value !== 'Unknown' && <p><span className="font-medium">Transmission:</span> {decodedVIN.transmission.value}</p>}
+              {decodedVIN.fuel && decodedVIN.fuel.value !== 'Unknown' && <p><span className="font-medium">Fuel:</span> {decodedVIN.fuel.value}</p>}
+              <p className="text-xs text-gray-500 mt-1">Decoder v{decodedVIN.decoderVersion} | DB v{decodedVIN.databaseVersion}</p>
             </div>
           )}
+
           <input name="make" placeholder="Make" value={form.vehicleInfo.make} onChange={handleVehicleChange} list="make-suggestions" className="border border-gray-300 rounded-xl px-4 py-2.5" />
           <datalist id="make-suggestions">{commonMakes.map((m) => <option key={m} value={m} />)}</datalist>
           <input name="model" placeholder="Model" value={form.vehicleInfo.model} onChange={handleVehicleChange} list="model-suggestions" className="border border-gray-300 rounded-xl px-4 py-2.5" />
@@ -616,9 +715,22 @@ export default function InspectionPage() {
           <input name="bodyType" placeholder="Body Type" value={form.vehicleInfo.bodyType} onChange={handleVehicleChange} list="body-type-suggestions" className="border border-gray-300 rounded-xl px-4 py-2.5" />
           <datalist id="body-type-suggestions">{commonBodyTypes.map((b) => <option key={b} value={b} />)}</datalist>
           <input name="mileage" placeholder="Mileage" value={form.vehicleInfo.mileage} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <select name="transmission" value={form.vehicleInfo.transmission} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="manual">Manual</option><option value="automatic">Automatic</option><option value="cvt">CVT</option><option value="other">Other</option></select>
-          <select name="fuelType" value={form.vehicleInfo.fuelType} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="petrol">Petrol</option><option value="diesel">Diesel</option><option value="electric">Electric</option><option value="hybrid">Hybrid</option><option value="lpg">LPG</option><option value="other">Other</option></select>
+          <select name="transmission" value={form.vehicleInfo.transmission} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <option value="manual">Manual</option>
+            <option value="automatic">Automatic</option>
+            <option value="cvt">CVT</option>
+            <option value="other">Other</option>
+          </select>
+          <select name="fuelType" value={form.vehicleInfo.fuelType} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <option value="petrol">Petrol</option>
+            <option value="diesel">Diesel</option>
+            <option value="electric">Electric</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="lpg">LPG</option>
+            <option value="other">Other</option>
+          </select>
           <input name="registrationNumber" placeholder="Registration Number" value={form.vehicleInfo.registrationNumber} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Licence Disc Validity</label>
             <input name="licenseExpiry" type="date" value={form.vehicleInfo.licenseExpiry} onChange={handleVehicleChange} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" />
@@ -629,28 +741,30 @@ export default function InspectionPage() {
               const isExpired = diffDays < 0;
               const isExpiringSoon = diffDays >= 0 && diffDays <= 30;
               return (
-                <p className={`text-xs mt-1 font-medium ${isExpired ? "text-red-600" : isExpiringSoon ? "text-amber-600" : "text-green-600"}`}>
-                  {isExpired
-                    ? `Expired ${Math.abs(diffDays)} day(s) ago`
-                    : isExpiringSoon
-                      ? `Expires in ${diffDays} day(s)`
-                      : `Valid for ${diffDays} day(s)`}
+                <p className={`text-xs mt-1 font-medium ${isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : 'text-green-600'}`}>
+                  {isExpired ? `Expired ${Math.abs(diffDays)} day(s) ago` : isExpiringSoon ? `Expires in ${diffDays} day(s)` : `Valid for ${diffDays} day(s)`}
                 </p>
               );
             })()}
           </div>
+
           <input name="engineNumber" placeholder="Engine Number" value={form.vehicleInfo.engineNumber} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <select name="vehiclePapers" value={form.vehicleInfo.vehiclePapers} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5"><option value="available">Papers Available</option><option value="pending">Papers Pending</option><option value="missing">Papers Missing</option></select>
+          <select name="vehiclePapers" value={form.vehicleInfo.vehiclePapers} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <option value="available">Papers Available</option>
+            <option value="pending">Papers Pending</option>
+            <option value="missing">Papers Missing</option>
+          </select>
           <input name="vehicleStatus" placeholder="Vehicle Status" value={form.vehicleInfo.vehicleStatus} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
           <input name="stockNumber" placeholder="Stock Number" value={form.vehicleInfo.stockNumber} readOnly className="border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-100 text-gray-700 cursor-not-allowed" />
         </div>
       </CollapsibleCard>
 
+
       <CollapsibleCard title={`Faults (${form.faults.length})`}>
         {form.faults.map((fault) => (
           <div key={fault.id} className="flex gap-2 mb-2">
             <input value={fault.description} onChange={(e) => handleFaultChange(fault.id, e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 flex-1" placeholder="Describe fault" />
-            <button onClick={() => handleFaultDelete(fault.id)} className="bg-red-50 text-red-600 px-3 rounded-xl">✕</button>
+            <button onClick={() => { if (window.confirm('Delete this fault?')) handleFaultDelete(fault.id) }} className="bg-red-50 text-red-600 px-3 rounded-xl">✕</button>
           </div>
         ))}
         <button onClick={handleFaultAdd} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100">+ Add Fault</button>
@@ -717,6 +831,14 @@ export default function InspectionPage() {
                       className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
                     >
                       Preview
+                    </button>
+                  )}
+                  {slot.photo && (
+                    <button
+                      onClick={() => { if (window.confirm('Delete this media?')) handleDeleteAdMedia(slot.id) }}
+                      className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                    >
+                      Delete
                     </button>
                   )}
                   <button
@@ -816,38 +938,26 @@ export default function InspectionPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="number" placeholder="Purchase Price" value={form.financial.purchasePrice ?? ''} onChange={(e) => handleFinancialChange('purchasePrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
           <input type="number" placeholder="Selling Price" value={form.financial.sellingPrice ?? ''} onChange={(e) => handleFinancialChange('sellingPrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input type="number" placeholder="Repair Cost" value={form.financial.repairCost ?? ''} onChange={(e) => handleFinancialChange('repairCost', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input type="number" placeholder="Transport Cost" value={form.financial.transportCost ?? ''} onChange={(e) => handleFinancialChange('transportCost', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
+
+
           <div className="border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50">Estimated Profit: <strong>{form.financial.estimatedProfit ?? '—'}</strong></div>
           <div className="border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50">Expected Margin: <strong>{form.financial.expectedMargin ? `${form.financial.expectedMargin.toFixed(2)}%` : '—'}</strong></div>
           <input type="number" placeholder="Trade Value" value={form.financial.tradeValue ?? ''} onChange={(e) => handleFinancialChange('tradeValue', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 col-span-full" />
-        </div>
-      </CollapsibleCard>
-
-      <CollapsibleCard title="Marketing & Advertisement">
-        <div className="space-y-4">
-          <input placeholder="Listing Title" value={form.marketing.title} onChange={(e) => handleMarketingChange('title', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 w-full" />
-          <textarea placeholder="Description" value={form.marketing.description} onChange={(e) => handleMarketingChange('description', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 w-full" rows={3} />
-          <input placeholder="SEO Keywords" value={form.marketing.seoKeywords.join(', ')} onChange={(e) => setForm({ ...form, marketing: { ...form.marketing, seoKeywords: e.target.value.split(',').map(s=>s.trim()).filter(Boolean) } })} className="border border-gray-300 rounded-xl px-4 py-2.5 w-full" />
-          <input placeholder="Hashtags" value={form.marketing.hashtags.join(', ')} onChange={(e) => handleHashtagsChange(e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 w-full" />
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">Channels</span>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { id: 'facebook', label: 'Facebook', icon: '📘', color: 'bg-blue-50 text-blue-700' },
-                { id: 'instagram', label: 'Instagram', icon: '📸', color: 'bg-pink-50 text-pink-700' },
-                { id: 'whatsapp', label: 'WhatsApp', icon: '💬', color: 'bg-green-50 text-green-700' },
-                { id: 'twitter', label: 'Twitter', icon: '🐦', color: 'bg-sky-50 text-sky-700' },
-              ].map((channel) => (
-                <button key={channel.id} type="button" onClick={() => handleChannelsToggle(channel.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${form.marketing.channels.includes(channel.id) ? channel.color + ' border-current' : 'bg-white border-gray-200 text-gray-500'}`}>
-                  <span>{channel.icon}</span>
-                  <span className="text-sm font-medium">{channel.label}</span>
-                </button>
-              ))}
-            </div>
+          <div className="col-span-full space-y-2">
+            <p className="font-medium text-gray-700">Additional Costs</p>
+            {form.financial.additionalCosts?.map((cost, idx) => (
+              <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl">
+                <span className="flex-1 text-sm">{cost.label}</span>
+                <span className="font-semibold">R {cost.amount.toLocaleString()}</span>
+                <button onClick={() => handleRemoveAdditionalCost(idx)} className="text-red-600">✕</button>
+              </div>
+            ))}
+            <button onClick={handleAddAdditionalCost} className="text-indigo-600 text-sm hover:underline">+ Add Other Cost</button>
           </div>
         </div>
       </CollapsibleCard>
+
+      
 
       {showCamera && <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />}
       {selectedPhoto && <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />}

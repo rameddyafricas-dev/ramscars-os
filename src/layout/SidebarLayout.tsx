@@ -5,12 +5,8 @@ const menuItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
   { path: '/inspection', label: 'Inspection', icon: '🔍' },
   { path: '/inventory', label: 'Inventory', icon: '🚗' },
-  { path: '/customers', label: 'Customers & Leads', icon: '👥' },
-  { path: '/sales', label: 'Sales', icon: '💰' },
   { path: '/media', label: 'Media', icon: '🖼️' },
   { path: '/documents', label: 'Documents', icon: '📄' },
-  { path: '/reminders', label: 'Reminders', icon: '⏰' },
-  { path: '/audit', label: 'Audit Log', icon: '🧾' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 

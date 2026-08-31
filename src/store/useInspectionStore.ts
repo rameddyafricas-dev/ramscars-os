@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { getAllRecords, addRecord, updateRecord } from '../services/db'
 import { logAudit } from '../services/audit'
-import { generateStockNumber } from '../utils/vinDecoder'
+import { generateStockNumber } from '../utils/stockNumber'
 import type {
   Inspection,
   ChecklistItem,
@@ -61,11 +61,10 @@ const emptyLocation: LocationInfo = {
 const emptyFinancial: FinancialInfo = {
   purchasePrice: null,
   sellingPrice: null,
-  repairCost: null,
-  transportCost: null,
   estimatedProfit: null,
   expectedMargin: null,
   tradeValue: null,
+  additionalCosts: [],
 }
 
 const emptyMarketing: MarketingInfo = {
@@ -152,7 +151,7 @@ function createEmptyInspection(): Inspection {
   return {
     id: `insp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     vehicleId: '',
-    status: 'draft',
+    status: 'in_progress',
     inspectionDate: now,
     items: [],
     ownerInfo: emptyOwnerInfo,
@@ -198,11 +197,30 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
       // Migrate old checklists to the new default if length differs or missing photoLabels
       inspections = inspections.map((insp) => {
         const needsMigration = !insp.checklist || insp.checklist.length !== defaultChecklist.length || insp.checklist.some((item) => !item.photoLabels)
-        const hasAdSlots = Array.isArray(insp.advertisementSlots) && insp.advertisementSlots.length === defaultAdvertisementSlots.length
+        // Preserve existing advertisement slots; add missing ones without wiping photos
+        const existingSlots = Array.isArray(insp.advertisementSlots) ? insp.advertisementSlots : [];
+        let mergedSlots = defaultAdvertisementSlots.map((defaultSlot) => {
+          const existing = existingSlots.find((slot) => slot.id === defaultSlot.id);
+          if (existing) return { ...defaultSlot, photo: existing.photo || '' };
+          return defaultSlot;
+        });
+        // If no slot has photos and there are legacy advertisementPhotos, populate slots
+        const hasSlotPhoto = mergedSlots.some((slot) => slot.photo && slot.photo.trim() !== '');
+        const legacyPhotos = Array.isArray(insp.advertisementPhotos) ? insp.advertisementPhotos.filter((photo) => photo) : [];
+        if (!hasSlotPhoto && legacyPhotos.length > 0) {
+          let photoIndex = 0;
+          mergedSlots = mergedSlots.map((slot) => {
+            if (slot.id === 'adv_video') return slot;
+            if (photoIndex < legacyPhotos.length) {
+              return { ...slot, photo: legacyPhotos[photoIndex++] };
+            }
+            return slot;
+          });
+        }
         return {
           ...insp,
           checklist: needsMigration ? defaultChecklist : insp.checklist,
-          advertisementSlots: hasAdSlots ? insp.advertisementSlots : defaultAdvertisementSlots,
+          advertisementSlots: mergedSlots,
         }
       })
       set({ inspections, isLoading: false })

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useCustomerStore } from '../store/useCustomerStore'
-import { useLeadStore } from '../store/useLeadStore'
 
 interface Insight {
   title: string
@@ -18,7 +17,6 @@ export default function InsightsPanel() {
   const { vehicles } = useVehicleStore()
   const { inspections } = useInspectionStore()
   const { customers } = useCustomerStore()
-  const { leads } = useLeadStore()
 
   const insights = useMemo<Insight[]>(() => {
     const result: Insight[] = []
@@ -89,18 +87,6 @@ export default function InsightsPanel() {
         actionRoute: '/inspection',
       })
     }
-
-    const followUpLeads = leads.filter((l) => l.status === 'new' || l.status === 'contacted')
-    if (followUpLeads.length > 0) {
-      result.push({
-        title: `${followUpLeads.length} lead(s) need follow-up`,
-        description: 'Act quickly on new or contacted leads to improve conversion.',
-        severity: 'info',
-        actionLabel: 'Open Customers & Leads',
-        actionRoute: '/customers',
-      })
-    }
-
     if (result.length === 0) {
       result.push({
         title: 'All systems look great',
@@ -112,7 +98,7 @@ export default function InsightsPanel() {
     }
 
     return result
-  }, [vehicles, inspections, customers, leads])
+  }, [vehicles, inspections, customers])
 
   const severityStyles: Record<Insight['severity'], string> = {
     info: 'bg-blue-50 text-blue-800 border-blue-200',

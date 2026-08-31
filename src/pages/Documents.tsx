@@ -115,7 +115,7 @@ export default function Documents() {
                           View
                         </a>
                       )}
-                      <button onClick={() => deleteDocument(doc.id)} className="text-red-600 text-sm hover:underline">
+                      <button onClick={() => { if (window.confirm('Delete this document?')) deleteDocument(doc.id) }} className="text-red-600 text-sm hover:underline">
                         Delete
                       </button>
                     </div>

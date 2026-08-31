@@ -24,6 +24,7 @@ export interface Vehicle extends BaseEntity {
   stockNumber?: string;
   photos?: string[];
   inspectionId?: string;
+  ownerName?: string;
   listingPrice?: number;
 }
 
@@ -109,14 +110,18 @@ export interface LocationInfo {
   bay?: string;
 }
 
+export interface AdditionalCost {
+  label: string;
+  amount: number;
+}
+
 export interface FinancialInfo {
   purchasePrice: number | null;
   sellingPrice: number | null;
-  repairCost: number | null;
-  transportCost: number | null;
   estimatedProfit: number | null;
   expectedMargin: number | null;
   tradeValue: number | null;
+  additionalCosts?: AdditionalCost[];
 }
 
 export interface MarketingInfo {
@@ -152,14 +157,14 @@ export interface Media extends BaseEntity { vehicleId?: string; inspectionId?: s
 export interface Document extends BaseEntity { vehicleId?: string; saleId?: string; type: string; title: string; fileUrl?: string; metadata?: Record<string, unknown>; }
 export type CustomerRole = 'owner' | 'buyer' | 'other';
 export interface Customer extends BaseEntity { name: string; phone?: string; email?: string; address?: string; role: CustomerRole; notes?: string; }
-export type LeadStatus = 'new' | 'contacted' | 'viewing' | 'negotiating' | 'closed_lost' | 'closed_won';
-export interface Lead extends BaseEntity { customerId: string; vehicleId?: string; source?: string; status: LeadStatus; notes?: string; }
-export type ConsignmentPeriod = '30' | '60' | '90';
-export type ConsignmentStatus = 'active' | 'expiring' | 'expired' | 'cancelled' | 'completed';
-export interface Consignment extends BaseEntity { vehicleId: string; ownerId: string; startDate: string; expiryDate: string; period: ConsignmentPeriod; targetPrice: number; listingPrice: number; status: ConsignmentStatus; notes?: string; }
-export type ListingStatus = 'draft' | 'published' | 'archived';
-export type MarketingChannel = 'facebook' | 'instagram' | 'whatsapp' | 'tiktok' | 'x' | 'youtube';
-export interface Listing extends BaseEntity { vehicleId: string; title: string; description?: string; seoKeywords?: string[]; hashtags?: string[]; status: ListingStatus; channels: MarketingChannel[]; }
+export interface Payment extends BaseEntity {
+  saleId: string;
+  amount: number;
+  method: string;
+  date: string;
+  notes?: string;
+}
+
 export type SaleStatus = 'reserved' | 'in_progress' | 'agreed' | 'completed' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'refunded';
 
@@ -177,11 +182,18 @@ export interface Sale extends BaseEntity {
   notes?: string;
 }
 
-export interface Payment extends BaseEntity {
-  saleId: string;
-  amount: number;
-  method: string;
-  date: string;
+export type ConsignmentPeriod = '30' | '60' | '90';
+export type ConsignmentStatus = 'active' | 'expiring' | 'expired' | 'cancelled' | 'completed';
+
+export interface Consignment extends BaseEntity {
+  vehicleId: string;
+  ownerId: string;
+  startDate: string;
+  expiryDate: string;
+  period: ConsignmentPeriod;
+  targetPrice: number;
+  listingPrice: number;
+  status: ConsignmentStatus;
   notes?: string;
 }
 

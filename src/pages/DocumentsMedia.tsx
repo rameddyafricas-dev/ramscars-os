@@ -1,138 +1,198 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
+import { useDocumentStore } from '../store/useDocumentStore'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
+import VideoModal from '../components/VideoModal'
 
-interface MediaItem {
-  id: string
-  src: string
-  type: 'advertisement' | 'checklist'
-  label: string
+interface MediaGroup {
+  vehicleId: string
   vehicleLabel: string
+  images: string[]
+  videos: { label: string; src: string }[]
+  documents: { title: string; url: string }[]
 }
 
 export default function DocumentsMedia() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
+  const { documents, loadDocuments } = useDocumentStore()
+  const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
-  }, [loadVehicles, loadInspections])
+    loadDocuments()
+  }, [loadVehicles, loadInspections, loadDocuments])
 
-  const mediaItems = useMemo<MediaItem[]>(() => {
-    const items: MediaItem[] = []
-
-    // Advertisement photos from vehicles
-    vehicles.forEach((vehicle) => {
+  const groups = useMemo<MediaGroup[]>(() => {
+    return vehicles.map((vehicle) => {
       const label = `${vehicle.year} ${vehicle.make} ${vehicle.model}`
+      const images: string[] = []
+      const videos: { label: string; src: string }[] = []
+      const documentsForVehicle = documents.filter((d) => d.vehicleId === vehicle.id)
+
+      // vehicle photos
       if (vehicle.photos) {
-        vehicle.photos.forEach((photo, idx) => {
-          if (!photo) return
-          items.push({
-            id: `${vehicle.id}-adv-${idx}`,
-            src: photo,
-            type: 'advertisement',
-            label: `Advertisement Photo ${idx + 1}`,
-            vehicleLabel: label,
+        vehicle.photos.forEach((photo) => {
+          if (photo) images.push(photo)
+        })
+      }
+
+      // inspection data
+      const inspection = inspections.find((i) => i.id === vehicle.inspectionId)
+      if (inspection) {
+        // advertisement slots (images + video)
+        inspection.advertisementSlots?.forEach((slot) => {
+          if (!slot.photo) return
+          if (slot.label === 'Video') {
+            videos.push({ label: 'Video', src: slot.photo })
+          } else {
+            images.push(slot.photo)
+          }
+        })
+
+        // old advertisementPhotos fallback
+        inspection.advertisementPhotos?.forEach((photo) => {
+          if (photo) images.push(photo)
+        })
+
+        // checklist media
+        inspection.checklist.forEach((item) => {
+          item.mediaIds?.forEach((media) => {
+            if (media) images.push(media)
           })
         })
       }
-    })
 
-    // Checklist media from inspections
-    inspections.forEach((inspection) => {
-      const label = `${inspection.vehicleInfo.year} ${inspection.vehicleInfo.make} ${inspection.vehicleInfo.model}`
-      inspection.checklist.forEach((item) => {
-        if (item.mediaIds) {
-          item.mediaIds.forEach((media, idx) => {
-            if (!media) return
-            items.push({
-              id: `${item.id}-${idx}`,
-              src: media,
-              type: 'checklist',
-              label: item.label,
-              vehicleLabel: label,
-            })
-          })
-        }
-      })
-      // also advertisement photos from inspections if not already in vehicle.photos
-      inspection.advertisementPhotos.forEach((photo, idx) => {
-        if (!photo) return
-        items.push({
-          id: `${inspection.id}-inspection-adv-${idx}`,
-          src: photo,
-          type: 'advertisement',
-          label: `Inspection Photo ${idx + 1}`,
-          vehicleLabel: label,
-        })
-      })
+      return {
+        vehicleId: vehicle.id,
+        vehicleLabel: label,
+        images: Array.from(new Set(images)),
+        videos,
+        documents: documentsForVehicle.map((doc) => ({
+          title: doc.title,
+          url: doc.fileUrl || '',
+        })),
+      }
     })
+  }, [vehicles, inspections, documents])
 
-    // Deduplicate by src
-    const seen = new Set<string>()
-    return items.filter((item) => {
-      if (seen.has(item.src)) return false
-      seen.add(item.src)
-      return true
-    })
-  }, [vehicles, inspections])
-
-  const advCount = mediaItems.filter((m) => m.type === 'advertisement').length
-  const checklistCount = mediaItems.filter((m) => m.type === 'checklist').length
+  const selectedGroup = groups.find((g) => g.vehicleId === selectedVehicleId)
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Documents & Media</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Media Library</h1>
         <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-          {mediaItems.length} item(s)
+          {vehicles.length} vehicle(s)
         </span>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="card p-4 text-center">
-          <p className="text-sm text-gray-500">Advertisement Photos</p>
-          <p className="text-2xl font-bold text-indigo-600">{advCount}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Vehicle list */}
+        <div className="card p-4">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Vehicles</h2>
+          <div className="space-y-2">
+            {groups.map((group) => (
+              <button
+                key={group.vehicleId}
+                onClick={() => setSelectedVehicleId(group.vehicleId)}
+                className={`w-full text-left p-3 rounded-xl border ${
+                  selectedVehicleId === group.vehicleId
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <p className="font-medium text-gray-800 truncate">{group.vehicleLabel}</p>
+                <p className="text-xs text-gray-500">
+                  {group.images.length} image(s) • {group.videos.length} video(s) • {group.documents.length} doc(s)
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-sm text-gray-500">Checklist Photos</p>
-          <p className="text-2xl font-bold text-green-600">{checklistCount}</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-sm text-gray-500">Documents</p>
-          <p className="text-2xl font-bold text-gray-600">0</p>
+
+        {/* Media display */}
+        <div className="md:col-span-2 card p-4">
+          {!selectedGroup ? (
+            <p className="text-gray-500">Select a vehicle to view its media.</p>
+          ) : (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-gray-800">{selectedGroup.vehicleLabel}</h2>
+
+              {/* Images */}
+              <section>
+                <h3 className="font-medium text-gray-700 mb-2">Images ({selectedGroup.images.length})</h3>
+                {selectedGroup.images.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No images</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {selectedGroup.images.map((src, idx) => (
+                      <img
+                        key={idx}
+                        src={src}
+                        alt={`Image ${idx + 1}`}
+                        className="h-32 w-full object-cover rounded-lg cursor-pointer border border-gray-200"
+                        onClick={() => setSelectedPhoto(src)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Videos */}
+              <section>
+                <h3 className="font-medium text-gray-700 mb-2">Videos ({selectedGroup.videos.length})</h3>
+                {selectedGroup.videos.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No videos</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedGroup.videos.map((video, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded-lg p-2">
+                        <video src={video.src} className="w-full h-32 object-cover rounded" muted />
+                        <button
+                          onClick={() => setSelectedVideo(video.src)}
+                          className="mt-2 bg-indigo-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                          Play Video
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Documents */}
+              <section>
+                <h3 className="font-medium text-gray-700 mb-2">Documents ({selectedGroup.documents.length})</h3>
+                {selectedGroup.documents.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No documents</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedGroup.documents.map((doc, idx) => (
+                      <a
+                        key={idx}
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block bg-gray-50 rounded-lg p-3 hover:bg-gray-100"
+                      >
+                        <p className="font-medium text-gray-800">📄 {doc.title}</p>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
         </div>
       </div>
 
-      {mediaItems.length === 0 ? (
-        <div className="card p-8 text-center text-gray-500">
-          No media available yet.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {mediaItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200">
-              <img
-                src={item.src}
-                alt={item.label}
-                className="h-32 w-full object-cover cursor-pointer"
-                onClick={() => setSelectedPhoto(item.src)}
-              />
-              <div className="p-2">
-                <p className="text-xs font-medium text-gray-700 truncate">{item.label}</p>
-                <p className="text-[10px] text-gray-500 truncate">{item.vehicleLabel}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedPhoto && (
-        <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
-      )}
+      {selectedPhoto && <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />}
+      {selectedVideo && <VideoModal src={selectedVideo} onClose={() => setSelectedVideo(null)} />}
     </div>
   )
 }

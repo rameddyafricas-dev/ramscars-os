@@ -89,8 +89,6 @@ export default function Reports() {
                   <h2>Financial Information</h2>
                   <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? 0}</p>
                   <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? 0}</p>
-                  <p><span class="label">Repair Cost:</span> R ${selectedInspection.financial.repairCost ?? 0}</p>
-                  <p><span class="label">Transport Cost:</span> R ${selectedInspection.financial.transportCost ?? 0}</p>
                 </div>
               `
               : ''

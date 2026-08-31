@@ -124,7 +124,7 @@ export default function Reminders() {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => toggleComplete(reminder)} className="text-green-600 text-sm hover:underline">Complete</button>
-                        <button onClick={() => deleteReminder(reminder.id)} className="text-red-600 text-sm hover:underline">Delete</button>
+                        <button onClick={() => { if (window.confirm('Delete this reminder?')) deleteReminder(reminder.id) }} className="text-red-600 text-sm hover:underline">Delete</button>
                       </div>
                     </div>
                   )
