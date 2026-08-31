@@ -12,6 +12,14 @@ import CollapsibleCard from '../components/CollapsibleCard'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
 import type { DecodedVIN } from '../services/vinTypes'
 
+function debounce<A extends any[]>(fn: (...args: A) => void, delay = 300) {
+  let timer: ReturnType<typeof setTimeout> | null;
+  return (...args: A) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 const initialScore: InspectionScore = {
   mechanical: null,
   interior: null,
@@ -298,7 +306,7 @@ export default function InspectionPage() {
       } else {
         await createVehicle(vehicleData);
       }
-    }, 600);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [form, createVehicle, updateVehicle]);
@@ -372,7 +380,7 @@ export default function InspectionPage() {
   const handleOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, ownerInfo: { ...form.ownerInfo, [e.target.name]: e.target.value } })
   const handleVehicleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, [e.target.name]: e.target.value } })
 
-  const handleVINChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVINChange = debounce((e: React.ChangeEvent<HTMLInputElement>) => {
     const vin = e.target.value.toUpperCase()
     setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, vin } })
     if (vin.length > 0) {
@@ -393,7 +401,7 @@ export default function InspectionPage() {
     } else {
       setDecodedVIN(null)
     }
-  }
+  })
 
   const handleChecklistResult = (id: string, result: 'pass' | 'advisory' | 'fail' | 'na') => {
     setForm({ ...form, checklist: form.checklist.map((c) => (c.id === id ? { ...c, result, checked: result !== 'na' } : c)) })

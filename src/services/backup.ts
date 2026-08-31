@@ -5,7 +5,6 @@ const storeNames: (keyof DBStores)[] = [
   'inspections',
   'vehicles',
   'customers',
-  'leads',
 ]
 
 export interface BackupFile {

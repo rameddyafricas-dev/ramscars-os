@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useReminderStore } from '../store/useReminderStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
@@ -9,7 +10,9 @@ export default function Reminders() {
   const { vehicles, loadVehicles } = useVehicleStore()
 
   const [title, setTitle] = useState('')
-  const [vehicleId, setVehicleId] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialVehicleId = searchParams.get('vehicle') || ''
+  const [vehicleId, setVehicleId] = useState(initialVehicleId)
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -83,7 +86,7 @@ export default function Reminders() {
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
               required
             />
-            <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+            <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!!initialVehicleId} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500">
               <option value="">No vehicle</option>
               {vehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>

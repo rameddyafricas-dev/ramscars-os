@@ -12,8 +12,9 @@ html, body, #root {
   height: 100%;
 }
 
+/* Theme variables */
 :root {
-  --bg: #f8fafc;
+  --bg: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
   --surface: #ffffff;
   --text: #0f172a;
   --text-muted: #475569;
@@ -22,22 +23,43 @@ html, body, #root {
   --accent-hover: #4f46e5;
   --accent-text: #ffffff;
   --card-shadow: 0 10px 30px rgba(99,102,241,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --sidebar-bg: #ffffff;
+  --header-bg: #ffffff;
+  --hover-bg: #eef2ff;
 }
 
 :root[data-theme="emerald"] {
+  --bg: linear-gradient(135deg, #d1fae5 0%, #f0fdf4 100%);
+  --surface: #ffffff;
+  --text: #064e3b;
+  --text-muted: #047857;
+  --border: #a7f3d0;
   --accent: #10b981;
   --accent-hover: #059669;
-  --card-shadow: 0 10px 30px rgba(16,185,129,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --accent-text: #ffffff;
+  --card-shadow: 0 10px 30px rgba(16,185,129,0.12), 0 4px 12px rgba(0,0,0,0.04);
+  --sidebar-bg: #f0fdf4;
+  --header-bg: #ecfdf5;
+  --hover-bg: #d1fae5;
 }
 
 :root[data-theme="amber"] {
+  --bg: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  --surface: #ffffff;
+  --text: #78350f;
+  --text-muted: #b45309;
+  --border: #fcd34d;
   --accent: #f59e0b;
   --accent-hover: #d97706;
-  --card-shadow: 0 10px 30px rgba(245,158,11,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --accent-text: #0f172a;
+  --card-shadow: 0 10px 30px rgba(245,158,11,0.12), 0 4px 12px rgba(0,0,0,0.04);
+  --sidebar-bg: #fffbeb;
+  --header-bg: #fef3c7;
+  --hover-bg: #fde68a;
 }
 
 :root.dark {
-  --bg: #0f172a;
+  --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   --surface: #1e293b;
   --text: #f1f5f9;
   --text-muted: #94a3b8;
@@ -45,24 +67,48 @@ html, body, #root {
   --accent: #818cf8;
   --accent-hover: #6366f1;
   --accent-text: #0f172a;
-  --card-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  --card-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  --sidebar-bg: #0f172a;
+  --header-bg: #1e293b;
+  --hover-bg: #334155;
 }
 
 :root.dark[data-theme="dark-emerald"] {
+  --bg: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
+  --surface: #064e3b;
+  --text: #d1fae5;
+  --text-muted: #6ee7b7;
+  --border: #047857;
   --accent: #34d399;
   --accent-hover: #10b981;
+  --accent-text: #022c22;
+  --card-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  --sidebar-bg: #022c22;
+  --header-bg: #064e3b;
+  --hover-bg: #065f46;
 }
 
 :root.dark[data-theme="dark-amber"] {
+  --bg: linear-gradient(135deg, #451a03 0%, #78350f 100%);
+  --surface: #78350f;
+  --text: #fef3c7;
+  --text-muted: #fbbf24;
+  --border: #b45309;
   --accent: #fbbf24;
   --accent-hover: #f59e0b;
+  --accent-text: #451a03;
+  --card-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  --sidebar-bg: #451a03;
+  --header-bg: #78350f;
+  --hover-bg: #92400e;
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background-color: var(--bg);
+  background: var(--bg);
   color: var(--text);
+  min-height: 100vh;
 }
 
 button, input, select, textarea {
@@ -83,7 +129,38 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Global dark overrides for common Tailwind gray classes */
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .bg-gray-50 {
+  background-color: var(--hover-bg);
+}
+.dark .bg-gray-100 {
+  background-color: var(--surface);
+}
+.dark .bg-gray-200 {
+  background-color: var(--border);
+}
+.dark .text-gray-800 {
+  color: var(--text);
+}
+.dark .text-gray-700 {
+  color: var(--text-muted);
+}
+.dark .text-gray-600 {
+  color: var(--text-muted);
+}
+.dark .text-gray-500 {
+  color: var(--text-muted);
+}
+.dark .border-gray-300,
+.dark .border-gray-200,
+.dark .border-gray-100 {
+  border-color: var(--border);
 }
 
 @layer components {
@@ -95,7 +172,7 @@ input:focus, select:focus, textarea:focus {
     transition: box-shadow 0.2s, transform 0.2s;
   }
   .card:hover {
-    box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.10);
     transform: translateY(-2px);
   }
   .btn-primary {

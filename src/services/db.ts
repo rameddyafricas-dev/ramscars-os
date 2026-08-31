@@ -1,15 +1,13 @@
 const DB_NAME = 'ramscars-os'
-const DB_VERSION = 8
+const DB_VERSION = 9
 
 export interface DBStores {
   dealershipProfile: any
   inspections: any
   vehicles: any
   customers: any
-  leads: any
   sales: any
   payments: any
-  consignments: any
   documents: any
   reminders: any
   auditLogs: any
@@ -40,10 +38,6 @@ function openDB(): Promise<IDBDatabase> {
         const store = database.createObjectStore('customers', { keyPath: 'id' })
         store.createIndex('role', 'role', { unique: false })
       }
-      if (!database.objectStoreNames.contains('leads')) {
-        const store = database.createObjectStore('leads', { keyPath: 'id' })
-        store.createIndex('status', 'status', { unique: false })
-      }
       if (!database.objectStoreNames.contains('sales')) {
         const store = database.createObjectStore('sales', { keyPath: 'id' })
         store.createIndex('vehicleId', 'vehicleId', { unique: false })
@@ -52,11 +46,6 @@ function openDB(): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains('payments')) {
         const store = database.createObjectStore('payments', { keyPath: 'id' })
         store.createIndex('saleId', 'saleId', { unique: false })
-      }
-      if (!database.objectStoreNames.contains('consignments')) {
-        const store = database.createObjectStore('consignments', { keyPath: 'id' })
-        store.createIndex('vehicleId', 'vehicleId', { unique: false })
-        store.createIndex('status', 'status', { unique: false })
       }
       if (!database.objectStoreNames.contains('documents')) {
         const store = database.createObjectStore('documents', { keyPath: 'id' })

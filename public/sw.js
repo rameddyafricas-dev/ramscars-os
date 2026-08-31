@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ramscars-os-v1';
+const CACHE_NAME = 'ramscars-os-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -24,10 +24,24 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
+  // Network-first for navigation requests
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (hashed by Vite)
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-
       return fetch(request).then((response) => {
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
@@ -35,11 +49,6 @@ self.addEventListener('fetch', (event) => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
-      }).catch(() => {
-        if (request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-        return new Response('', { status: 408, statusText: 'Offline' });
       });
     })
   );

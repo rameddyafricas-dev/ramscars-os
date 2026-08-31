@@ -30,9 +30,7 @@ export default function SidebarLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [sidebarOpen])
 
-  const handleNavClick = () => {
-    setSidebarOpen(false)
-  }
+  const handleNavClick = () => setSidebarOpen(false)
 
   const goToProfile = () => {
     setProfileOpen(false)
@@ -41,66 +39,68 @@ export default function SidebarLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-surface-light">
-      <header className="bg-white border-b border-gray-200 h-16 flex items-center px-4 shadow-soft sticky top-0 z-40">
+    <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
+      <header className="h-20 flex items-center px-4 shadow-soft sticky top-0 z-40" style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--border)' }}>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="mr-3 p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+          className="mr-3 p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+          style={{ color: 'var(--text)' }}
           aria-label="Toggle menu"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">R</div>
-          <span className="font-semibold text-gray-800">RamsCars OS</span>
+
+        <div className="leading-tight">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🚗</span>
+            <span className="text-lg font-bold" style={{ color: 'var(--text)' }}>RamsCars Dealership</span>
+          </div>
+          <span className="text-xs block opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>Inspected, Transparent and Trusted</span>
         </div>
 
         <div className="ml-auto relative" ref={profileRef}>
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center overflow-hidden transition-colors"
+            className="w-10 h-10 rounded-full hover:bg-[var(--hover-bg)] flex items-center justify-center overflow-hidden transition-colors"
+            style={{ border: `1px solid ${'var(--border)'}` }}
             title="Profile"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6" style={{ color: 'var(--text-muted)' }}>
               <circle cx="12" cy="8" r="4" />
               <path d="M4 20c0-4 4-6 8-6s8 2 8 6v1H4v-1z" />
             </svg>
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden z-50">
-              <button onClick={goToProfile} className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors">
-                <p className="font-medium text-gray-800">Dealer Profile</p>
-                <p className="text-xs text-gray-500">Manage dealership details</p>
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl shadow-card border overflow-hidden z-50" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <button onClick={goToProfile} className="w-full text-left px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors">
+                <p className="font-medium" style={{ color: 'var(--text)' }}>Dealer Profile</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Manage dealership details</p>
               </button>
-              <button onClick={() => setProfileOpen(false)} className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-t border-gray-100">
-                <p className="font-medium text-gray-800">Close</p>
+              <button onClick={() => setProfileOpen(false)} className="w-full text-left px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors border-t" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
+                Close
               </button>
             </div>
           )}
         </div>
       </header>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Drawer sidebar */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-72 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ background: 'var(--sidebar-bg)' }}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">R</div>
-            <span className="font-semibold text-gray-800">RamsCars OS</span>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100">
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <span className="font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}><span className="text-xl">🚗</span> RamsCars Dealership</span>
+          <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-xl hover:bg-[var(--hover-bg)]" style={{ color: 'var(--text)' }}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -112,11 +112,13 @@ export default function SidebarLayout() {
               onClick={handleNavClick}
               className={({ isActive }) =>
                 `group flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-card'
-                    : 'text-gray-600 hover:bg-indigo-50 hover:text-gray-900'
+                  isActive ? 'shadow-card' : 'hover:bg-[var(--hover-bg)]'
                 }`
               }
+              style={({ isActive }) => ({
+                background: isActive ? 'var(--accent)' : 'transparent',
+                color: isActive ? 'var(--accent-text)' : 'var(--text)',
+              })}
             >
               <span className="text-lg">{item.icon}</span>
               {item.label}
@@ -125,7 +127,7 @@ export default function SidebarLayout() {
         </nav>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6" style={{ color: 'var(--text)' }}>
         <Outlet />
       </main>
     </div>
