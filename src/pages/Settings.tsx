@@ -6,8 +6,8 @@ type ThemeName = 'indigo' | 'emerald' | 'amber' | 'dark-indigo' | 'dark-emerald'
 
 export default function Settings() {
   const [mode, setMode] = useState<ThemeMode>('light')
-  const [lightTheme, setLightTheme] = useState<ThemeName>('indigo')
-  const [darkTheme, setDarkTheme] = useState<ThemeName>('dark-indigo')
+  const [lightTheme, setLightTheme] = useState<ThemeName | ''>('')
+  const [darkTheme, setDarkTheme] = useState<ThemeName | ''>('')
 
   useEffect(() => {
     const savedMode = localStorage.getItem('ramscars_mode') as ThemeMode | null
@@ -30,7 +30,7 @@ export default function Settings() {
     root.setAttribute('data-theme', mode === 'light' ? lightTheme : darkTheme)
   }, [mode, lightTheme, darkTheme])
 
-  const currentTheme = mode === 'light' ? lightTheme : darkTheme
+  const currentTheme: ThemeName | '' = mode === 'light' ? lightTheme : darkTheme
 
   const handleModeChange = (newMode: ThemeMode) => setMode(newMode)
 
@@ -66,7 +66,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <h3 className="font-medium mb-2">Themes</h3>
+            <h3 className="font-medium mb-2">Themes {currentTheme === '' ? '(Select theme)' : ''}</h3>
             <div className="grid grid-cols-3 gap-4">
               {mode === 'light' ? (
                 <>

@@ -182,20 +182,6 @@ export interface Sale extends BaseEntity {
   notes?: string;
 }
 
-export type ConsignmentPeriod = '30' | '60' | '90';
-export type ConsignmentStatus = 'active' | 'expiring' | 'expired' | 'cancelled' | 'completed';
-
-export interface Consignment extends BaseEntity {
-  vehicleId: string;
-  ownerId: string;
-  startDate: string;
-  expiryDate: string;
-  period: ConsignmentPeriod;
-  targetPrice: number;
-  listingPrice: number;
-  status: ConsignmentStatus;
-  notes?: string;
-}
 
 export type ReportType = 'internal' | 'customer';
 export interface Report extends BaseEntity { type: ReportType; vehicleId?: string; saleId?: string; generatedAt: string; data: Record<string, unknown>; fileUrl?: string; }
@@ -203,6 +189,7 @@ export interface Reminder extends BaseEntity {
   title: string;
   vehicleId?: string;
   dueDate: string;
+  dueTime?: string;
   completed: boolean;
   notes?: string;
 }

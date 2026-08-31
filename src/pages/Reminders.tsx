@@ -14,6 +14,7 @@ export default function Reminders() {
   const initialVehicleId = searchParams.get('vehicle') || ''
   const [vehicleId, setVehicleId] = useState(initialVehicleId)
   const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState('')
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function Reminders() {
       title,
       vehicleId: vehicleId || undefined,
       dueDate,
+      dueTime: dueTime || undefined,
       completed: false,
       notes,
       createdAt: now,
@@ -47,7 +49,7 @@ export default function Reminders() {
     await createReminder(reminder)
     setTitle('')
     setVehicleId('')
-    setDueDate('')
+    setDueDate(''); setDueTime('')
     setNotes('')
   }
 

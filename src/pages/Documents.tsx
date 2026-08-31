@@ -4,6 +4,7 @@ import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
 import { compressImage } from '../utils/image'
 import type { Document } from '../types'
+import DocumentPreviewModal from '../components/DocumentPreviewModal'
 
 export default function Documents() {
   const { documents, loadDocuments, createDocument, deleteDocument } = useDocumentStore()
@@ -12,6 +13,7 @@ export default function Documents() {
   const [title, setTitle] = useState('')
   const [type, setType] = useState('legal')
   const [fileData, setFileData] = useState('')
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -111,9 +113,9 @@ export default function Documents() {
                     </div>
                     <div className="flex gap-2">
                       {doc.fileUrl && (
-                        <a href={doc.fileUrl} download={doc.title} className="text-indigo-600 text-sm hover:underline">
+                        <button onClick={() => setPreviewDoc(doc)} className="text-indigo-600 text-sm hover:underline">
                           View
-                        </a>
+                        </button>
                       )}
                       <button onClick={() => { if (window.confirm('Delete this document?')) deleteDocument(doc.id) }} className="text-red-600 text-sm hover:underline">
                         Delete
@@ -126,6 +128,15 @@ export default function Documents() {
           )}
         </div>
       </div>
+
+      {previewDoc && previewDoc.fileUrl && (
+        <DocumentPreviewModal
+          type={previewDoc.fileUrl.startsWith('data:image') ? 'image' : 'pdf'}
+          src={previewDoc.fileUrl}
+          title={previewDoc.title}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
     </div>
   )
 }

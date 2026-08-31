@@ -185,7 +185,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                             <button onClick={() => { onPhotoCapture(item.id, idx); setSlotTarget(null) }} className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Camera</button>
                             <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
                               Gallery
-                              <input type="file" accept="image/*,application/pdf,.doc,.docx" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onGallery(item.id, idx, file); setSlotTarget(null); e.target.value = '' }} />
+                              <input type="file" accept="image/*,application/pdf,.doc,.docx" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (file) await onGallery(item.id, idx, file); setSlotTarget(null); e.target.value = '' }} />
                             </label>
                             {photo && isImage && (
                               <button onClick={() => { onPhotoPreview(photo); setSlotTarget(null) }} className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Preview</button>
@@ -377,70 +377,6 @@ export default function InspectionPage() {
     )
   }
 
-  const handleOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, ownerInfo: { ...form.ownerInfo, [e.target.name]: e.target.value } })
-  const handleVehicleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, [e.target.name]: e.target.value } })
-
-  const handleVINChange = debounce((e: React.ChangeEvent<HTMLInputElement>) => {
-    const vin = e.target.value.toUpperCase()
-    setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, vin } })
-    if (vin.length > 0) {
-      const decoded = decodeVIN(vin)
-      setDecodedVIN(decoded)
-      if (decoded.manufacturer.value !== 'Unknown') {
-        setForm((prev) => prev ? ({
-          ...prev,
-          vehicleInfo: {
-            ...prev.vehicleInfo,
-            make: decoded.manufacturer.value,
-            year: decoded.modelYear.value !== 'Unknown' ? decoded.modelYear.value : prev.vehicleInfo.year,
-          },
-        }) : prev)
-      } else if (decoded.modelYear.value !== 'Unknown') {
-        setForm((prev) => prev ? ({ ...prev, vehicleInfo: { ...prev.vehicleInfo, year: decoded.modelYear.value } }) : prev)
-      }
-    } else {
-      setDecodedVIN(null)
-    }
-  })
-
-  const handleChecklistResult = (id: string, result: 'pass' | 'advisory' | 'fail' | 'na') => {
-    setForm({ ...form, checklist: form.checklist.map((c) => (c.id === id ? { ...c, result, checked: result !== 'na' } : c)) })
-  }
-  const handleChecklistNote = (id: string, note: string) => {
-    setForm({ ...form, checklist: form.checklist.map((c) => (c.id === id ? { ...c, note } : c)) })
-  }
-  const handleFaultAdd = () => setForm({ ...form, faults: [...form.faults, { id: `fault_${Date.now()}`, description: '' }] })
-  const handleFaultChange = (id: string, value: string) => setForm({ ...form, faults: form.faults.map((f) => (f.id === id ? { ...f, description: value } : f)) })
-  const handleFaultDelete = (id: string) => setForm({ ...form, faults: form.faults.filter((f) => f.id !== id) })
-  const handleScoreChange = (category: keyof InspectionScore, value: string) => setForm({ ...form, score: { ...form.score, [category]: value === '' ? null : Number(value) } })
-  const getGPS = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setForm({ ...form, location: { ...form.location, decimal: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, gps: { lat, lng } } });
-      });
-    }
-  };
-
-  const showCoordinates = () => {
-    if (form.location.decimal) {
-      window.open(`https://www.google.com/maps?q=${form.location.decimal}`, '_blank');
-    }
-  };
-
-  const showMap = () => {
-    if (form.location.gps) {
-      window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank');
-    }
-  };
-
-  const clearLocation = () => {
-    if (window.confirm('Clear location?')) {
-      setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
-    }
-  };
-
   const recalcFinancial = (financial: FinancialInfo): FinancialInfo => {
     const purchase = financial.purchasePrice || 0;
     const selling = financial.sellingPrice || 0;
@@ -490,9 +426,71 @@ export default function InspectionPage() {
         additionalCosts: prev.financial.additionalCosts?.filter((_, i) => i !== index),
       })
     } : prev);
+  };
+
+  const showMap = () => {
+    if (form.location.gps) {
+      window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank');
+    }
+  };
+
+  const clearLocation = () => {
+    if (window.confirm('Clear location?')) {
+      setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
+    }
+  };
+
+  const handleOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, ownerInfo: { ...form.ownerInfo, [e.target.name]: e.target.value } })
+  const handleVehicleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, [e.target.name]: e.target.value } })
+
+  const handleVINChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vin = e.target.value.toUpperCase()
+    setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, vin } })
+    if (vin.length === 0) {
+      setDecodedVIN(null)
+    }
+    debouncedDecodeVIN(vin)
   }
 
-  const handleDeleteAdMedia = (slotId: string) => {
+  const debouncedDecodeVIN = debounce((vin: string) => {
+    if (vin.length === 0) return
+    const decoded = decodeVIN(vin)
+    setDecodedVIN(decoded)
+    if (decoded.manufacturer.value !== 'Unknown') {
+      setForm((prev) => prev ? ({
+        ...prev,
+        vehicleInfo: {
+          ...prev.vehicleInfo,
+          make: decoded.manufacturer.value,
+          year: decoded.modelYear.value !== 'Unknown' ? decoded.modelYear.value : prev.vehicleInfo.year,
+        },
+      }) : prev)
+    } else if (decoded.modelYear.value !== 'Unknown') {
+      setForm((prev) => prev ? ({ ...prev, vehicleInfo: { ...prev.vehicleInfo, year: decoded.modelYear.value } }) : prev)
+    }
+  }, 300)
+
+  const handleChecklistResult = (id: string, result: 'pass' | 'advisory' | 'fail' | 'na') => {
+    setForm({ ...form, checklist: form.checklist.map((c) => (c.id === id ? { ...c, result, checked: result !== 'na' } : c)) })
+  }
+  const handleChecklistNote = (id: string, note: string) => {
+    setForm({ ...form, checklist: form.checklist.map((c) => (c.id === id ? { ...c, note } : c)) })
+  }
+  const handleFaultAdd = () => setForm({ ...form, faults: [...form.faults, { id: `fault_${Date.now()}`, description: '' }] })
+  const handleFaultChange = (id: string, value: string) => setForm({ ...form, faults: form.faults.map((f) => (f.id === id ? { ...f, description: value } : f)) })
+  const handleFaultDelete = (id: string) => setForm({ ...form, faults: form.faults.filter((f) => f.id !== id) })
+  const handleScoreChange = (category: keyof InspectionScore, value: string) => setForm({ ...form, score: { ...form.score, [category]: value === '' ? null : Number(value) } })
+  const getGPS = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setForm({ ...form, location: { ...form.location, decimal: `${lat.toFixed(6)}, ${lng.toFixed(6)}`, gps: { lat, lng } } });
+      });
+    }
+  };
+
+    const handleDeleteAdMedia = (slotId: string) => {
     setForm((prev) => prev ? ({
       ...prev,
       advertisementSlots: prev.advertisementSlots?.map((slot) =>
@@ -929,8 +927,7 @@ export default function InspectionPage() {
 
           <div className="flex flex-wrap gap-3">
             <button onClick={getGPS} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-200">Get Current GPS</button>
-            <button onClick={showCoordinates} className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl hover:bg-amber-200">Show Coordinates</button>
-            <button onClick={showMap} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Map</button>
+                        <button onClick={showMap} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Map</button>
             <button onClick={clearLocation} className="bg-red-100 text-red-700 px-4 py-2 rounded-xl hover:bg-red-200">Clear</button>
           </div>
 

@@ -95,7 +95,7 @@ export default function DataManagement() {
         <div className="card p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-3">Export Backup</h2>
           <p className="text-gray-600 text-sm mb-4">
-            Download a JSON file with all vehicles, inspections, customers, leads, photos, and dealership profile.
+            Download a JSON file with all vehicles, inspections, customers, sales, payments, documents, reminders, photos, and dealership profile.
           </p>
           <button onClick={handleExport} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700">
             Export Backup

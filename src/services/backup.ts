@@ -1,10 +1,15 @@
-import { DBStores, getAllRecords, deleteRecord } from './db'
+import { DBStores, getAllRecords, addRecord, deleteRecord } from './db'
 
 const storeNames: (keyof DBStores)[] = [
   'dealershipProfile',
   'inspections',
   'vehicles',
   'customers',
+  'sales',
+  'payments',
+  'documents',
+  'reminders',
+  'auditLogs',
 ]
 
 export interface BackupFile {
@@ -28,16 +33,29 @@ export async function exportAllData(): Promise<BackupFile> {
 export async function importAllData(backup: BackupFile): Promise<void> {
   if (!backup || !backup.data) throw new Error('Invalid backup file')
 
+  // Clear existing stores first
+  for (const store of storeNames) {
+    const existing = await getAllRecords<any>(store)
+    for (const record of existing) {
+      await deleteRecord(store, record.id)
+    }
+  }
 
+  // Insert imported records
+  for (const store of storeNames) {
+    const records = backup.data[store]
+    if (!Array.isArray(records)) continue
+    for (const record of records) {
+      if (!record || !record.id) continue
+      await addRecord(store, record)
+    }
+  }
 }
 
 export async function clearAllData(): Promise<void> {
-  const allRecords: Record<string, any[]> = {}
   for (const store of storeNames) {
-    allRecords[store] = await getAllRecords<any>(store)
-  }
-  for (const store of storeNames) {
-    for (const record of allRecords[store]) {
+    const records = await getAllRecords<any>(store)
+    for (const record of records) {
       await deleteRecord(store, record.id)
     }
   }

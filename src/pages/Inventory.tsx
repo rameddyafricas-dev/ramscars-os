@@ -131,7 +131,7 @@ export default function Inventory() {
           {filtered.map((vehicle) => {
             const isSold = vehicle.status === 'sold';
             return (
-              <div key={vehicle.id} className={`card overflow-hidden ${isSold ? 'opacity-60 pointer-events-none' : ''}`}>
+              <div key={vehicle.id} className={`card overflow-hidden ${isSold ? 'opacity-70' : ''}`}>
                 <div className="h-48 bg-gray-100 flex items-center justify-center relative">
                   {vehicle.photos && vehicle.photos.length > 0 ? (
                     <img
@@ -168,12 +168,12 @@ export default function Inventory() {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-4">
                     <button onClick={() => handleReminders(vehicle.id)} className="bg-cyan-50 text-cyan-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-cyan-100">Reminders</button>
-                    <button onClick={() => handleSales(vehicle.id)} className="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-100">Sales</button>
-                    <button onClick={() => handleCustomers(vehicle.id)} className="bg-pink-50 text-pink-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-pink-100">Customers</button>
+                    <button disabled={isSold} onClick={() => handleSales(vehicle.id)} className="bg-green-50 text-green-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed">Sales</button>
+                    <button disabled={isSold} onClick={() => handleCustomers(vehicle.id)} className="bg-pink-50 text-pink-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-pink-100 disabled:opacity-50 disabled:cursor-not-allowed">Customers</button>
                     <button onClick={() => handleListing(vehicle.id)} className="bg-purple-50 text-purple-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-purple-100">Listing</button>
                     <button onClick={() => handleReports(vehicle.id)} className="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-100">Reports</button>
                     <button onClick={() => handleView(vehicle.inspectionId)} className="bg-amber-50 text-amber-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-amber-100">View</button>
-                    <button onClick={() => handleEdit(vehicle.inspectionId)} className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100">Edit</button>
+                    <button disabled={isSold} onClick={() => handleEdit(vehicle.inspectionId)} className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
                   </div>
                 </div>
               </div>
