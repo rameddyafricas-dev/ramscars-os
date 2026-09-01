@@ -428,9 +428,31 @@ export default function InspectionPage() {
     } : prev);
   };
 
-  const showMap = () => {
+  const showCoordinates = () => {
+    if (form.location.decimal) {
+      const coords = form.location.decimal.split(',').map(s => s.trim());
+      if (coords.length === 2) {
+        window.open(`https://www.google.com/maps?q=${coords[0]},${coords[1]}`, '_blank');
+        return;
+      }
+    }
     if (form.location.gps) {
       window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank');
+    }
+  };
+
+  const showLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+      }, (err) => {
+        console.error('Geolocation error:', err);
+        alert('Unable to get current location. Please allow location access.');
+      });
+    } else {
+      alert('Geolocation not supported.');
     }
   };
 
@@ -442,6 +464,28 @@ export default function InspectionPage() {
 
   const handleOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, ownerInfo: { ...form.ownerInfo, [e.target.name]: e.target.value } })
   const handleVehicleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, vehicleInfo: { ...form.vehicleInfo, [e.target.name]: e.target.value } })
+  const handleLocationDecimalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const decimal = e.target.value;
+    setForm((prev) => prev ? {
+      ...prev,
+      location: {
+        ...prev.location,
+        decimal,
+        gps: (() => {
+          if (!decimal.trim()) return undefined;
+          const parts = decimal.split(',').map(s => s.trim());
+          if (parts.length === 2) {
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              return { lat, lng };
+            }
+          }
+          return undefined;
+        })()
+      }
+    } : prev);
+  };
 
   const handleVINChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vin = e.target.value.toUpperCase()
@@ -910,7 +954,7 @@ export default function InspectionPage() {
               <input
                 placeholder="e.g. -26.195246, 28.034088"
                 value={form.location.decimal}
-                onChange={(e) => setForm({ ...form, location: { ...form.location, decimal: e.target.value } })}
+                onChange={handleLocationDecimalChange}
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
               />
             </div>
@@ -927,7 +971,8 @@ export default function InspectionPage() {
 
           <div className="flex flex-wrap gap-3">
             <button onClick={getGPS} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-200">Get Current GPS</button>
-                        <button onClick={showMap} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Map</button>
+                        <button onClick={showCoordinates} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Coordinates</button>
+            <button onClick={showLocation} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Location</button>
             <button onClick={clearLocation} className="bg-red-100 text-red-700 px-4 py-2 rounded-xl hover:bg-red-200">Clear</button>
           </div>
 

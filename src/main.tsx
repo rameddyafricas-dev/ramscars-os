@@ -7,16 +7,16 @@ import './index.css'
 (function () {
   try {
     const savedMode = localStorage.getItem('ramscars_mode')
-    const savedLightTheme = localStorage.getItem('ramscars_light_theme') || 'indigo'
-    const savedDarkTheme = localStorage.getItem('ramscars_dark_theme') || 'dark-indigo'
+    const savedLightTheme = localStorage.getItem('ramscars_light_theme')
+    const savedDarkTheme = localStorage.getItem('ramscars_dark_theme')
 
     const root = document.documentElement
     if (savedMode === 'dark') {
       root.classList.add('dark')
-      root.setAttribute('data-theme', savedDarkTheme)
+      if (savedDarkTheme) root.setAttribute('data-theme', savedDarkTheme)
     } else {
       root.classList.remove('dark')
-      root.setAttribute('data-theme', savedLightTheme)
+      if (savedLightTheme) root.setAttribute('data-theme', savedLightTheme)
     }
   } catch (e) {
     // localStorage not available

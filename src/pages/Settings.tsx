@@ -8,6 +8,7 @@ export default function Settings() {
   const [mode, setMode] = useState<ThemeMode>('light')
   const [lightTheme, setLightTheme] = useState<ThemeName | ''>('')
   const [darkTheme, setDarkTheme] = useState<ThemeName | ''>('')
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     const savedMode = localStorage.getItem('ramscars_mode') as ThemeMode | null
@@ -17,9 +18,11 @@ export default function Settings() {
     if (savedMode === 'dark' || savedMode === 'light') setMode(savedMode)
     if (savedLight) setLightTheme(savedLight)
     if (savedDark) setDarkTheme(savedDark)
+    setLoaded(true)
   }, [])
 
   useEffect(() => {
+    if (!loaded) return;
     localStorage.setItem('ramscars_mode', mode)
     localStorage.setItem('ramscars_light_theme', lightTheme)
     localStorage.setItem('ramscars_dark_theme', darkTheme)
@@ -66,7 +69,8 @@ export default function Settings() {
           </div>
 
           <div>
-            <h3 className="font-medium mb-2">Themes {currentTheme === '' ? '(Select theme)' : ''}</h3>
+            <h3 className="font-medium mb-2">Themes</h3>
+            {currentTheme === '' && <p className="text-sm text-gray-500 mb-3">Select theme</p>}
             <div className="grid grid-cols-3 gap-4">
               {mode === 'light' ? (
                 <>

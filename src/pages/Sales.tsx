@@ -10,6 +10,7 @@ export default function Sales() {
   const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
   const { customers, loadCustomers } = useCustomerStore()
   const { sales, payments, loadSales, loadPayments, createSale, createPayment, updateSale } = useSaleStore()
+
   const [searchParams] = useSearchParams()
   const initialVehicleId = searchParams.get('vehicle') || ''
 
@@ -23,6 +24,7 @@ export default function Sales() {
   const [activeSaleId, setActiveSaleId] = useState('')
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [editSaleMode, setEditSaleMode] = useState(false)
 
   useEffect(() => {
     loadVehicles()
@@ -61,7 +63,6 @@ export default function Sales() {
 
     await createSale(sale)
 
-    // Update vehicle status to reserved if not already sold
     if (selectedVehicle && selectedVehicle.status !== 'sold') {
       const updatedVehicle: Vehicle = {
         ...selectedVehicle,
@@ -118,6 +119,34 @@ export default function Sales() {
       }
       await updateVehicle(updatedVehicle)
     }
+  }
+
+  const handleUpdateSale = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedSale) return
+    const updatedSale: Sale = {
+      ...selectedSale,
+      buyerId,
+      salePrice: Number(salePrice),
+      deposit: deposit ? Number(deposit) : undefined,
+      status,
+      paymentStatus,
+      notes,
+      updatedAt: new Date().toISOString(),
+    }
+    await updateSale(updatedSale)
+    setEditSaleMode(false)
+  }
+
+  const startEdit = () => {
+    if (!selectedSale) return
+    setBuyerId(selectedSale.buyerId)
+    setSalePrice(selectedSale.salePrice.toString())
+    setDeposit(selectedSale.deposit?.toString() || '')
+    setStatus(selectedSale.status)
+    setPaymentStatus(selectedSale.paymentStatus)
+    setNotes(selectedSale.notes || '')
+    setEditSaleMode(true)
   }
 
   return (
@@ -250,7 +279,7 @@ export default function Sales() {
             </div>
           )}
 
-          {selectedSale ? (
+          {selectedSale && !editSaleMode ? (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex justify-between">
@@ -273,6 +302,19 @@ export default function Sales() {
                   <span className="font-medium text-gray-800">Status</span>
                   <span className="text-gray-600 text-sm capitalize">{selectedSale.status.replace('_', ' ')}</span>
                 </div>
+                <div className="flex justify-between mt-1">
+                  <span className="font-medium text-gray-800">Payment Status</span>
+                  <span className="text-gray-600 text-sm capitalize">{selectedSale.paymentStatus.replace('_', ' ')}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="font-medium text-gray-800">Deposit</span>
+                  <span className="text-gray-600 text-sm">{selectedSale.deposit ? 'R ' + selectedSale.deposit.toLocaleString() : '—'}</span>
+                </div>
+                {selectedSale.notes && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    <span className="font-medium">Notes:</span> {selectedSale.notes}
+                  </p>
+                )}
               </div>
 
               <form onSubmit={handleAddPayment} className="space-y-3">
@@ -315,7 +357,42 @@ export default function Sales() {
                   Complete Sale
                 </button>
               )}
+              <button
+                onClick={startEdit}
+                className="w-full bg-indigo-100 text-indigo-700 px-5 py-2.5 rounded-xl hover:bg-indigo-200"
+              >
+                Edit Sale
+              </button>
             </div>
+          ) : selectedSale && editSaleMode ? (
+            <form onSubmit={handleUpdateSale} className="space-y-4">
+              <select value={buyerId} onChange={(e) => setBuyerId(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" required>
+                <option value="">Select buyer</option>
+                {customers.filter((c) => c.role === 'buyer' || c.role === 'other').map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </select>
+              <input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="Sale Price" className="w-full border border-gray-300 rounded-xl px-4 py-2.5" required />
+              <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="Deposit" className="w-full border border-gray-300 rounded-xl px-4 py-2.5" />
+              <select value={status} onChange={(e) => setStatus(e.target.value as SaleStatus)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+                <option value="reserved">Reserved</option>
+                <option value="in_progress">In Progress</option>
+                <option value="agreed">Agreed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="refunded">Refunded</option>
+              </select>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="w-full border border-gray-300 rounded-xl px-4 py-2.5" rows={2} />
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-xl">Update Sale</button>
+                <button type="button" onClick={() => setEditSaleMode(false)} className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-xl">Cancel</button>
+              </div>
+            </form>
           ) : (
             <p className="text-gray-500 text-sm">Select a sale from the list or create a new sale.</p>
           )}

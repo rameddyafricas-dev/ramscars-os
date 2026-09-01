@@ -3,14 +3,18 @@ import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
+import DocumentPreviewModal from '../components/DocumentPreviewModal'
 
 export default function Reports() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
   const { profile, loadProfile } = useDealershipStore()
+
   const [searchParams] = useSearchParams()
   const initialVehicleId = searchParams.get('vehicle') || ''
   const [selectedVehicleId, setSelectedVehicleId] = useState(initialVehicleId)
+  const [reportHtml, setReportHtml] = useState<string | null>(null)
+  const [reportTitle, setReportTitle] = useState('')
 
   useEffect(() => {
     loadVehicles()
@@ -76,23 +80,19 @@ export default function Reports() {
             <p><span class="label">Colour:</span> ${selectedInspection.vehicleInfo.color || '—'}</p>
             <p><span class="label">Location:</span> ${location}</p>
           </div>
-          ${
-            type === 'internal'
-              ? `
-                <div class="section">
-                  <h2>Owner Information</h2>
-                  <p><span class="label">Name:</span> ${selectedInspection.ownerInfo.name || '—'}</p>
-                  <p><span class="label">Contact:</span> ${selectedInspection.ownerInfo.contactNumber || '—'}</p>
-                  <p><span class="label">Email:</span> ${selectedInspection.ownerInfo.email || '—'}</p>
-                </div>
-                <div class="section">
-                  <h2>Financial Information</h2>
-                  <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? 0}</p>
-                  <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? 0}</p>
-                </div>
-              `
-              : ''
-          }
+          ${type === 'internal' ? `
+            <div class="section">
+              <h2>Owner Information</h2>
+              <p><span class="label">Name:</span> ${selectedInspection.ownerInfo.name || '—'}</p>
+              <p><span class="label">Contact:</span> ${selectedInspection.ownerInfo.contactNumber || '—'}</p>
+              <p><span class="label">Email:</span> ${selectedInspection.ownerInfo.email || '—'}</p>
+            </div>
+            <div class="section">
+              <h2>Financial Information</h2>
+              <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? 0}</p>
+              <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? 0}</p>
+            </div>
+          ` : ''}
           <div class="section">
             <h2>Faults</h2>
             ${faultsHtml}
@@ -116,12 +116,8 @@ export default function Reports() {
       </html>
     `
 
-    const win = window.open('', '_blank')
-    if (win) {
-      win.document.write(html)
-      win.document.close()
-      win.print()
-    }
+    setReportTitle(`${type === 'internal' ? 'Internal' : 'Customer'} Vehicle Report`)
+    setReportHtml(html)
   }
 
   return (
@@ -193,6 +189,14 @@ export default function Reports() {
           )}
         </div>
       </div>
+      {reportHtml && (
+        <DocumentPreviewModal
+          type="html"
+          html={reportHtml}
+          title={reportTitle}
+          onClose={() => setReportHtml(null)}
+        />
+      )}
     </div>
   )
 }

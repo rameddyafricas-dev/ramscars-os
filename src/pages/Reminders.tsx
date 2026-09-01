@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useReminderStore } from '../store/useReminderStore'
 import { useVehicleStore } from '../store/useVehicleStore'
@@ -21,6 +21,60 @@ export default function Reminders() {
     loadReminders()
     loadVehicles()
   }, [loadReminders, loadVehicles])
+
+  const notifiedRef = useRef<Set<string>>(new Set());
+  const [permission, setPermission] = useState<NotificationPermission>('default');
+
+  const playBeep = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.frequency.value = 880;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 1);
+      ctx.close();
+    } catch (e) {
+      console.log('Beep failed', e);
+    }
+  };
+
+  const checkDueReminders = () => {
+    const now = new Date();
+    reminders.forEach(reminder => {
+      if (reminder.completed) return;
+      const due = new Date(reminder.dueDate + 'T' + (reminder.dueTime || '00:00'));
+      if (due <= now && !notifiedRef.current.has(reminder.id)) {
+        notifiedRef.current.add(reminder.id);
+        if (permission === 'granted') {
+          new Notification('RamsCars Reminder', { body: reminder.title });
+        }
+        playBeep();
+      }
+    });
+  };
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPermission(Notification.permission);
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(p => setPermission(p));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(checkDueReminders, 30000);
+    checkDueReminders();
+    return () => clearInterval(interval);
+  }, [reminders, permission]);
 
   const pendingReminders = useMemo(
     () => reminders.filter((r) => !r.completed).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
@@ -87,6 +141,12 @@ export default function Reminders() {
               onChange={(e) => setDueDate(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
               required
+            />
+            <input
+              type="time"
+              value={dueTime}
+              onChange={(e) => setDueTime(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
             />
             <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} disabled={!!initialVehicleId} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 disabled:bg-gray-100 disabled:text-gray-500">
               <option value="">No vehicle</option>
