@@ -117,18 +117,15 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                   <button onClick={() => onResult(item.id, 'na')} className={`px-2 py-1 rounded-md text-xs font-medium ${item.result === 'na' ? 'bg-black text-white' : 'bg-white text-black border border-gray-300'}`}>N/A</button>
                 </div>
               </div>
-
               <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
                 <span title="Note">📝</span>
                 <input value={item.note || ''} onChange={(e) => onNote(item.id, e.target.value)} placeholder="Add note" className="w-full text-sm bg-transparent focus:outline-none" />
               </div>
-
               {item.photoLabels && item.photoLabels.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {item.photoLabels.map((label: string, idx: number) => {
                     const photo = item.mediaIds?.[idx]
                     const isImage = photo && photo.startsWith('data:image')
-
                     return (
                       <div key={label + idx} className="relative">
                         {photo ? (
@@ -179,7 +176,6 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                             )}
                           </div>
                         )}
-
                         {slotTarget && slotTarget.itemId === item.id && slotTarget.index === idx && (
                           <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-20 p-1">
                             <button onClick={() => { onPhotoCapture(item.id, idx); setSlotTarget(null) }} className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full">Camera</button>
@@ -201,7 +197,6 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                   })}
                 </div>
               )}
-
               <button onClick={() => { const label = prompt('Photo label:'); if (label) onAddPhotoSlot(item.id, label) }} className="text-xs text-indigo-600 hover:underline">+ Add Photo</button>
             </div>
           ))}
@@ -218,6 +213,8 @@ export default function InspectionPage() {
   const [showCamera, setShowCamera] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
+  const [loadingCoordinates, setLoadingCoordinates] = useState(false)
+  const [loadingLocation, setLoadingLocation] = useState(false)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
 
@@ -429,15 +426,17 @@ export default function InspectionPage() {
   };
 
   const showCoordinates = () => {
-    if (form.location.decimal) {
-      const coords = form.location.decimal.split(',').map(s => s.trim());
-      if (coords.length === 2) {
-        window.open(`https://www.google.com/maps?q=${coords[0]},${coords[1]}`, '_blank');
-        return;
-      }
+    let coordsStr = form.location.decimal;
+    if (!coordsStr && form.location.gps) {
+      coordsStr = `${form.location.gps.lat},${form.location.gps.lng}`;
     }
-    if (form.location.gps) {
-      window.open(`https://www.google.com/maps?q=${form.location.gps.lat},${form.location.gps.lng}`, '_blank');
+    const parts = coordsStr ? coordsStr.split(',').map(s => s.trim()) : [];
+    if (parts.length === 2) {
+      setLoadingCoordinates(true);
+      window.open(`https://www.google.com/maps?q=${parts[0]},${parts[1]}`, '_blank');
+      setTimeout(() => setLoadingCoordinates(false), 800);
+    } else {
+      alert('Enter valid coordinates');
     }
   };
 
@@ -446,7 +445,9 @@ export default function InspectionPage() {
       navigator.geolocation.getCurrentPosition((pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        setLoadingLocation(true);
         window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+        setTimeout(() => setLoadingLocation(false), 800);
       }, (err) => {
         console.error('Geolocation error:', err);
         alert('Unable to get current location. Please allow location access.');
@@ -573,10 +574,12 @@ export default function InspectionPage() {
     setAdSlotTarget(null)
     e.target.value = ''
   }
+  
   const openCameraForChecklist = (itemId: string, index: number) => {
     setCameraTarget(`check:${itemId}:${index}`)
     setShowCamera(true)
   }
+
   const handleChecklistGallery = async (itemId: string, index: number, file: File) => {
     let dataUrl = ''
     if (file.type.startsWith('image/')) {
@@ -971,14 +974,18 @@ export default function InspectionPage() {
 
           <div className="flex flex-wrap gap-3">
             <button onClick={getGPS} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-200">Get Current GPS</button>
-                        <button onClick={showCoordinates} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Coordinates</button>
-            <button onClick={showLocation} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200">Show Location</button>
+                        <button onClick={showCoordinates} disabled={loadingCoordinates} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200 disabled:opacity-50">
+  {loadingCoordinates ? '⏳' : 'Show Coordinates'}
+</button>
+            <button onClick={showLocation} disabled={loadingLocation} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200 disabled:opacity-50">
+  {loadingLocation ? '⏳' : 'Show Location'}
+</button>
             <button onClick={clearLocation} className="bg-red-100 text-red-700 px-4 py-2 rounded-xl hover:bg-red-200">Clear</button>
           </div>
 
-          {form.location.gps && (
+          {form.location.decimal && (
             <p className="text-sm text-gray-600">
-              Pinned: {form.location.gps.lat.toFixed(6)}, {form.location.gps.lng.toFixed(6)}
+              Pinned: {form.location.decimal}
             </p>
           )}
         </div>
