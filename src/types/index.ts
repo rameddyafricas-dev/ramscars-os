@@ -192,6 +192,8 @@ export interface Reminder extends BaseEntity {
   dueTime?: string;
   completed: boolean;
   notes?: string;
+  category?: 'service' | 'payment' | 'general' | 'other';
+  priority?: 'low' | 'medium' | 'high';
 }
 
 export type AuditAction = 'created' | 'updated' | 'deleted' | 'completed' | 'cancelled' | 'payment_received';
