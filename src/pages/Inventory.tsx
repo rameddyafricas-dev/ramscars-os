@@ -5,6 +5,7 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import { useSaleStore } from '../store/useSaleStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useReminderStore } from '../store/useReminderStore'
+import { useDealershipStore } from '../store/useDealershipStore'
 import type { Vehicle } from '../types'
 
 type SortOption = 'newest' | 'oldest' | 'priceAsc' | 'priceDesc' | 'mileageAsc' | 'mileageDesc' | 'make'
@@ -16,6 +17,7 @@ export default function Inventory() {
   const { sales, loadSales } = useSaleStore()
   const { customers, loadCustomers } = useCustomerStore()
   const { reminders, loadReminders } = useReminderStore()
+  const { profile, loadProfile } = useDealershipStore()
 
   // UI state
   const [search, setSearch] = useState('')
@@ -32,6 +34,9 @@ export default function Inventory() {
   const [maxMileage, setMaxMileage] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [quickViewVehicleId, setQuickViewVehicleId] = useState<string | null>(null)
+  const [publishVehicle, setPublishVehicle] = useState<Vehicle | null>(null)
+  const [publishText, setPublishText] = useState('')
+  const [publishPhotoIndex, setPublishPhotoIndex] = useState(0)
 
   // Load all required data
   useEffect(() => {
@@ -40,7 +45,8 @@ export default function Inventory() {
     loadSales()
     loadCustomers()
     loadReminders()
-  }, [loadVehicles, loadInspections, loadSales, loadCustomers, loadReminders])
+    loadProfile()
+  }, [loadVehicles, loadInspections, loadSales, loadCustomers, loadReminders, loadProfile])
 
   // Derived data
   const makes = useMemo(() => {
@@ -109,6 +115,72 @@ export default function Inventory() {
     return { inspection, sale, buyer, nextReminder, profit, margin, progress }
   }
 
+
+
+  const getPublishPhotos = (vehicle: Vehicle): string[] => {
+    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
+    if (!inspection) return vehicle.photos || [];
+    const slotPhotos = inspection.advertisementSlots
+      ? inspection.advertisementSlots.filter(s => s.photo && s.photo.trim() !== '').map(s => s.photo)
+      : [];
+    const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : [];
+    const combined = Array.from(new Set([...slotPhotos, ...legacyPhotos]));
+    return combined.length > 0 ? combined : (vehicle.photos || []);
+  };
+
+  const openPublishModal = (vehicle: Vehicle) => {
+    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
+    const textParts = [
+      inspection?.marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+      inspection?.marketing?.description || '',
+      vehicle.listingPrice !== undefined ? `Price: R ${vehicle.listingPrice.toLocaleString()}` : 'Contact for price',
+      profile ? `${profile.name} | ${profile.phone} | ${profile.email}` : '',
+      (inspection?.marketing?.hashtags || []).join(' ')
+    ];
+    setPublishText(textParts.filter(Boolean).join('\n'));
+    setPublishPhotoIndex(0);
+    setPublishVehicle(vehicle);
+  };
+
+  const handlePublishShare = async () => {
+    if (!publishVehicle) return;
+    const photos = getPublishPhotos(publishVehicle);
+    const selectedPhoto = photos[publishPhotoIndex];
+
+    let file: File | undefined;
+    if (selectedPhoto && selectedPhoto.startsWith('data:')) {
+      try {
+        const [meta, data] = selectedPhoto.split(',');
+        const mime = meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        const blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: mime });
+        file = new File([blob], 'ad.jpg', { type: mime });
+      } catch (e) {
+        console.warn('Failed to create photo file', e);
+      }
+    }
+
+    try {
+      if (navigator.share) {
+        const shareData: any = { title: 'Vehicle Ad', text: publishText };
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          shareData.files = [file];
+        }
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(publishText);
+        window.open(`https://wa.me/?text=${encodeURIComponent(publishText)}`, '_blank');
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+      try {
+        await navigator.clipboard.writeText(publishText);
+        window.open(`https://wa.me/?text=${encodeURIComponent(publishText)}`, '_blank');
+      } catch (e2) {
+        console.error('Fallback share failed', e2);
+      }
+    }
+    setPublishVehicle(null);
+  };
 
   const toggleSelected = (id: string) => {
     const newSet = new Set(selectedIds)
@@ -204,6 +276,7 @@ export default function Inventory() {
             <button onClick={() => navigateTo(`/customers?vehicle=${vehicle.id}`)} className="bg-pink-50 text-pink-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-pink-100">Customers</button>
             <button onClick={() => navigateTo(`/reminders?vehicle=${vehicle.id}`)} className="bg-cyan-50 text-cyan-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-cyan-100">Reminders</button>
             <button onClick={() => navigateTo(`/marketing?vehicle=${vehicle.id}`)} className="bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-purple-100">Listing</button>
+            <button onClick={() => openPublishModal(vehicle)} className="bg-orange-50 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-orange-100">Publish</button>
             <button onClick={() => navigateTo(`/reports?vehicle=${vehicle.id}`)} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100">Reports</button>
           </div>
         </div>
@@ -409,7 +482,55 @@ export default function Inventory() {
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/customers?vehicle=${quickViewVehicle.id}`) }} className="bg-pink-100 text-pink-700 px-4 py-2 rounded-xl text-sm">Customers</button>
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/reminders?vehicle=${quickViewVehicle.id}`) }} className="bg-cyan-100 text-cyan-700 px-4 py-2 rounded-xl text-sm">Reminders</button>
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/marketing?vehicle=${quickViewVehicle.id}`) }} className="bg-purple-100 text-purple-700 px-4 py-2 rounded-xl text-sm">Listing</button>
+              <button onClick={() => { setQuickViewVehicleId(null); openPublishModal(quickViewVehicle); }} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl text-sm">Publish</button>
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/reports?vehicle=${quickViewVehicle.id}`) }} className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl text-sm">Reports</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {publishVehicle && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4" onClick={() => setPublishVehicle(null)}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Publish Ad</h2>
+              <button onClick={() => setPublishVehicle(null)} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+            </div>
+
+            {/* Photo selection */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Select Photo</h3>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {getPublishPhotos(publishVehicle).map((photo, idx) => (
+                  <img
+                    key={idx}
+                    src={photo}
+                    alt={`Photo ${idx+1}`}
+                    onClick={() => setPublishPhotoIndex(idx)}
+                    className={`h-20 w-20 object-cover rounded-lg cursor-pointer border-2 ${publishPhotoIndex === idx ? 'border-indigo-600' : 'border-gray-200'}`}
+                  />
+                ))}
+                {getPublishPhotos(publishVehicle).length === 0 && (
+                  <p className="text-gray-500 text-sm">No photos available</p>
+                )}
+              </div>
+            </div>
+
+            {/* Editable text */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Ad Text</h3>
+              <textarea
+                value={publishText}
+                onChange={(e) => setPublishText(e.target.value)}
+                rows={6}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <button onClick={handlePublishShare} className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Share Now</button>
+              <button onClick={() => setPublishVehicle(null)} className="flex-1 bg-gray-200 text-gray-800 px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
             </div>
           </div>
         </div>
