@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 interface DocumentPreviewModalProps {
   type: 'image' | 'pdf' | 'html'
   src?: string
@@ -7,6 +9,14 @@ interface DocumentPreviewModalProps {
 }
 
 export default function DocumentPreviewModal({ type, src, html, title = 'Document', onClose }: DocumentPreviewModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   const handlePrint = () => {
     if (type === 'html' && html) {
       const win = window.open('', '_blank')
@@ -33,11 +43,17 @@ export default function DocumentPreviewModal({ type, src, html, title = 'Documen
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="document-preview-title"
+    >
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 flex items-center justify-between border-b">
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button>
+          <h3 id="document-preview-title" className="font-semibold text-gray-800">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800" aria-label="Close preview">✕</button>
         </div>
         <div className="flex-1 overflow-auto p-2">
           {type === 'html' ? (

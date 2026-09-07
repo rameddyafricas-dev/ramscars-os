@@ -12,7 +12,11 @@ export default function Toast({ message, onClose }: ToastProps) {
   }, [onClose])
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg z-[9999]">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg z-[9999]"
+    >
       {message}
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface PromptField {
   key: string
@@ -17,6 +17,17 @@ interface PromptDialogProps {
 
 export default function PromptDialog({ open, title, fields, onSubmit, onCancel }: PromptDialogProps) {
   const [values, setValues] = useState<Record<string, string>>({})
+  const firstInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    firstInputRef.current?.focus()
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, onCancel])
 
   if (!open) return null
 
@@ -27,14 +38,22 @@ export default function PromptDialog({ open, title, fields, onSubmit, onCancel }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="prompt-dialog-title"
+    >
       <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+        <h3 id="prompt-dialog-title" className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
-          {fields.map(field => (
+          {fields.map((field, index) => (
             <div key={field.key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+              <label htmlFor={`prompt-${field.key}`} className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
               <input
+                id={`prompt-${field.key}`}
+                ref={index === 0 ? firstInputRef : undefined}
                 type={field.type || 'text'}
                 placeholder={field.placeholder}
                 value={values[field.key] || ''}
