@@ -8,7 +8,13 @@ interface DocumentPreviewModalProps {
   onClose: () => void
 }
 
-export default function DocumentPreviewModal({ type, src, html, title = 'Document', onClose }: DocumentPreviewModalProps) {
+export default function DocumentPreviewModal({
+  type,
+  src,
+  html,
+  title = 'Document',
+  onClose,
+}: DocumentPreviewModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -16,6 +22,72 @@ export default function DocumentPreviewModal({ type, src, html, title = 'Documen
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
+
+  const getReportFile = (): File | null => {
+    try {
+      let content = ''
+      let mimeType = 'text/html'
+      let extension = 'html'
+
+      if (type === 'html' && html) {
+        content = html
+        mimeType = 'text/html'
+        extension = 'html'
+      } else if (src) {
+        if (src.startsWith('data:')) {
+          const [meta, data] = src.split(',')
+          const mimeMatch = meta.match(/data:([^;]+)/)
+          if (mimeMatch) mimeType = mimeMatch[1]
+          content = atob(data)
+        } else {
+          // For non-data URLs, we cannot reliably create a file without fetching.
+          return null
+        }
+      } else {
+        return null
+      }
+
+      const blob = new Blob([content], { type: mimeType })
+      return new File([blob], `${title.replace(/[^\w\s-]/g, '')}.${extension}`, { type: mimeType })
+    } catch (err) {
+      console.error('Failed to create report file:', err)
+      return null
+    }
+  }
+
+  const handleShareFile = async () => {
+    const file = getReportFile()
+    if (!file) {
+      handleDownloadFile()
+      return
+    }
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title,
+          files: [file],
+        })
+      } catch (err) {
+        console.error('Share failed:', err)
+      }
+    } else {
+      handleDownloadFile()
+    }
+  }
+
+  const handleDownloadFile = () => {
+    const file = getReportFile()
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   const handlePrint = () => {
     if (type === 'html' && html) {
@@ -29,17 +101,6 @@ export default function DocumentPreviewModal({ type, src, html, title = 'Documen
       const win = window.open(src, '_blank')
       if (win) win.print()
     }
-  }
-
-  const handleEmail = () => {
-    const subject = encodeURIComponent(title)
-    const body = encodeURIComponent(`Please find attached: ${title}`)
-    window.location.href = `mailto:?subject=${subject}&body=${body}`
-  }
-
-  const handleWhatsApp = () => {
-    const text = encodeURIComponent(`Please find attached: ${title}`)
-    window.open(`https://wa.me/?text=${text}`, '_blank')
   }
 
   return (
@@ -64,11 +125,10 @@ export default function DocumentPreviewModal({ type, src, html, title = 'Documen
             <img src={src} alt={title} className="max-w-full max-h-[65vh] object-contain mx-auto" />
           )}
         </div>
-        <div className="p-3 flex gap-2 border-t">
+        <div className="p-3 flex gap-2 border-t flex-wrap">
           <button onClick={handlePrint} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">Print</button>
-          <button onClick={handleEmail} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">Email</button>
-          <button onClick={handleWhatsApp} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">WhatsApp</button>
-        </div>
+          <button onClick={handleShareFile} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">Share File</button>
+          <button onClick={handleDownloadFile} className="bg-gray-600 text-white px-4 py-2 rounded-xl text-sm">Download</button></div>
       </div>
     </div>
   )
