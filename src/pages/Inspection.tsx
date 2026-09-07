@@ -13,6 +13,7 @@ import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
+import { recalcFinancial, calculateInspectionProgress } from '../utils/inspectionHelpers'
 import type { DecodedVIN } from '../services/vinTypes'
 
 function debounce<A extends any[]>(fn: (...args: A) => void, delay = 300) {
@@ -245,21 +246,7 @@ export default function InspectionPage() {
 
   useEffect(() => {
     if (!form || !activeInspection || form.id !== activeInspection.id) return
-    const calculateProgress = (inspection: Inspection): number => {
-      let completed = 0
-      const sections = [
-        inspection.ownerInfo.name && inspection.ownerInfo.contactNumber,
-        inspection.vehicleInfo.make && inspection.vehicleInfo.model && inspection.vehicleInfo.vin,
-        inspection.checklist.some((c) => c.result === 'pass' || c.result === 'advisory'),
-        inspection.faults.length > 0 || inspection.advertisementPhotos.length > 0,
-        inspection.location.decimal || inspection.location.dms,
-        inspection.financial.purchasePrice && inspection.financial.sellingPrice,
-        inspection.marketing.title,
-      ]
-      sections.forEach((s) => { if (s) completed++ })
-      return Math.round((completed / sections.length) * 100)
-    }
-    const newProgress = calculateProgress(form)
+    const newProgress = calculateInspectionProgress(form)
     if (form.progress !== newProgress) {
       setForm((prev) => (prev ? { ...prev, progress: newProgress } : prev))
       return
@@ -381,20 +368,7 @@ export default function InspectionPage() {
     )
   }
 
-  const recalcFinancial = (financial: FinancialInfo): FinancialInfo => {
-    const purchase = financial.purchasePrice || 0;
-    const selling = financial.sellingPrice || 0;
-    const additionalTotal = (financial.additionalCosts || []).reduce((sum, c) => sum + (c.amount || 0), 0);
-    if (purchase > 0 && selling > 0) {
-      financial.estimatedProfit = selling - purchase - additionalTotal;
-      financial.expectedMargin = (financial.estimatedProfit / purchase) * 100;
-    } else {
-      financial.estimatedProfit = null;
-      financial.expectedMargin = null;
-    }
-    return financial;
-  };
-
+  
   const handleFinancialChange = (field: keyof FinancialInfo, value: string) => {
     setForm((prev) => prev ? {
       ...prev,
