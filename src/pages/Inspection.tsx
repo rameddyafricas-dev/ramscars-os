@@ -14,6 +14,7 @@ import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
 import ChecklistGroup from '../components/ChecklistGroup'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
+import { parseDecimalCoordinates, getCoordinatesForMap } from '../utils/locationUtils'
 import { recalcFinancial, calculateInspectionProgress } from '../utils/inspectionHelpers'
 import type { DecodedVIN } from '../services/vinTypes'
 
@@ -264,14 +265,10 @@ export default function InspectionPage() {
   };
 
   const showCoordinates = () => {
-    let coordsStr = form.location.decimal;
-    if (!coordsStr && form.location.gps) {
-      coordsStr = `${form.location.gps.lat},${form.location.gps.lng}`;
-    }
-    const parts = coordsStr ? coordsStr.split(',').map(s => s.trim()) : [];
-    if (parts.length === 2) {
+    const coords = getCoordinatesForMap(form.location);
+    if (coords) {
       setLoadingCoordinates(true);
-      window.open(`https://www.google.com/maps?q=${parts[0]},${parts[1]}`, '_blank');
+      window.open(`https://www.google.com/maps?q=${coords}`, '_blank');
       setTimeout(() => setLoadingCoordinates(false), 800);
     } else {
       setToastMessage('Enter valid coordinates');
@@ -313,18 +310,7 @@ export default function InspectionPage() {
       location: {
         ...prev.location,
         decimal,
-        gps: (() => {
-          if (!decimal.trim()) return undefined;
-          const parts = decimal.split(',').map(s => s.trim());
-          if (parts.length === 2) {
-            const lat = parseFloat(parts[0]);
-            const lng = parseFloat(parts[1]);
-            if (!isNaN(lat) && !isNaN(lng)) {
-              return { lat, lng };
-            }
-          }
-          return undefined;
-        })()
+        gps: parseDecimalCoordinates(decimal)
       }
     } : prev);
   };
