@@ -212,7 +212,7 @@ export default function Reminders() {
         <div className="lg:col-span-2 card p-6">
           <div className="flex flex-col md:flex-row gap-3 mb-4">
             <input type="text" placeholder="Search reminders" value={search} onChange={(e) => setSearch(e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 flex-1" />
-            <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <select value={filter} onChange={(e) => setFilter(e.target.value as 'all' | 'pending' | 'completed' | 'overdue')} className="border border-gray-300 rounded-xl px-4 py-2.5">
               <option value="pending">Pending</option>
               <option value="overdue">Overdue</option>
               <option value="completed">Completed</option>

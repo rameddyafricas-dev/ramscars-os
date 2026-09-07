@@ -5,7 +5,7 @@ export function generateStockNumber(): string {
   const m = (now.getMonth() + 1).toString().padStart(2, '0');
   const d = now.getDate().toString().padStart(2, '0');
   const today = `${y}${m}${d}`;
-  let stored: any = null;
+  let stored: { date: string; sequence: number } | null = null;
   try {
     const raw = localStorage.getItem(key);
     if (raw) stored = JSON.parse(raw);

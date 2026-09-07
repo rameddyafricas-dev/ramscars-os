@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
+import type { ChecklistItem } from '../types'
 
 function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onRequestAddPhotoSlot, onGallery }: {
   title: string
-  items: any[]
+  items: ChecklistItem[]
   totalSlots: number
   filledSlots: number
   onResult: (id: string, result: 'pass' | 'advisory' | 'fail' | 'na') => void
@@ -57,7 +58,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
       </button>
       {open && (
         <div className="p-3 space-y-3">
-          {items.map((item: any) => (
+          {items.map((item: ChecklistItem) => (
             <div key={item.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-start gap-2">
                 <span className="text-sm text-gray-700 flex-1">{item.label}</span>

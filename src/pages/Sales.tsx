@@ -244,7 +244,7 @@ export default function Sales() {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Sales List</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
             <input type="text" placeholder="Search buyer/vehicle" value={search} onChange={(e) => setSearch(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 text-sm" />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="border border-gray-300 rounded-xl px-3 py-2 text-sm">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | SaleStatus)} className="border border-gray-300 rounded-xl px-3 py-2 text-sm">
               <option value="all">All statuses</option>
               <option value="reserved">Reserved</option>
               <option value="in_progress">In Progress</option>
@@ -252,7 +252,7 @@ export default function Sales() {
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value as any)} className="border border-gray-300 rounded-xl px-3 py-2 text-sm">
+            <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value as 'all' | PaymentStatus)} className="border border-gray-300 rounded-xl px-3 py-2 text-sm">
               <option value="all">All payments</option>
               <option value="pending">Pending</option>
               <option value="partial">Partial</option>

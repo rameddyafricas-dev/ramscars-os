@@ -115,7 +115,7 @@ export default function Customers() {
       {/* Filters */}
       <div className="card p-4 mb-6 flex flex-col md:flex-row gap-3">
         <input type="text" placeholder="Search customers..." value={search} onChange={(e) => setSearch(e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 md:w-80" />
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as any)} className="border border-gray-300 rounded-xl px-4 py-2.5">
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as 'all' | CustomerRole)} className="border border-gray-300 rounded-xl px-4 py-2.5">
           <option value="all">All roles</option>
           <option value="owner">Owner</option>
           <option value="buyer">Buyer</option>

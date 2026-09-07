@@ -268,7 +268,7 @@ export default function Inventory() {
             onChange={(e) => setSearch(e.target.value)}
             className="border border-gray-300 rounded-xl px-4 py-2.5"
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="border border-gray-300 rounded-xl px-4 py-2.5">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | Vehicle['status'])} className="border border-gray-300 rounded-xl px-4 py-2.5">
             <option value="all">All statuses</option>
             <option value="available">Available</option>
             <option value="reserved">Reserved</option>
