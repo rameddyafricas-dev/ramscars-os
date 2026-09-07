@@ -13,10 +13,10 @@ import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
 import ChecklistGroup from '../components/ChecklistGroup'
-import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
+import type { Inspection, InspectionScore, FinancialInfo } from '../types'
 import { debounce, initialScore, commonMakes, commonBodyTypes, commonColors } from '../utils/inspectionConstants'
 import { parseDecimalCoordinates, getCoordinatesForMap } from '../utils/locationUtils'
-import { recalcFinancial, calculateInspectionProgress } from '../utils/inspectionHelpers'
+import { recalcFinancial, calculateInspectionProgress, buildVehicleData } from '../utils/inspectionHelpers'
 import type { DecodedVIN } from '../services/vinTypes'
 
 
@@ -80,28 +80,7 @@ export default function InspectionPage() {
       const existingVehicle = useVehicleStore.getState().vehicles.find((v) => v.inspectionId === form.id);
       if (!form.vehicleInfo.make && !form.vehicleInfo.model && !form.vehicleInfo.vin) return;
 
-      const now = new Date().toISOString();
-      const vehicleData: Vehicle = {
-        id: existingVehicle?.id || `veh_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-        vin: form.vehicleInfo.vin,
-        registration: form.vehicleInfo.registrationNumber,
-        make: form.vehicleInfo.make,
-        model: form.vehicleInfo.model,
-        year: Number(form.vehicleInfo.year) || 0,
-        mileage: Number(form.vehicleInfo.mileage) || 0,
-        colour: form.vehicleInfo.color,
-        fuelType: form.vehicleInfo.fuelType,
-        transmission: form.vehicleInfo.transmission,
-        classification: form.vehicleInfo.bodyType,
-        status: existingVehicle?.status || 'available',
-        notes: existingVehicle?.notes || '',
-        stockNumber: form.vehicleInfo.stockNumber,
-        photos: form.advertisementSlots && form.advertisementSlots.length > 0 ? form.advertisementSlots.filter((slot) => slot.photo).map((slot) => slot.photo) : form.advertisementPhotos,
-        inspectionId: form.id,
-        listingPrice: form.financial.sellingPrice ?? undefined,
-        createdAt: existingVehicle?.createdAt || now,
-        updatedAt: now,
-      };
+            const vehicleData = buildVehicleData(form, existingVehicle, { preserveNotes: true })
 
       if (existingVehicle) {
         await updateVehicle(vehicleData);
@@ -117,28 +96,7 @@ export default function InspectionPage() {
     if (!form) return;
     await updateInspection(form);
     const existingVehicle = vehicles.find((v) => v.inspectionId === form.id);
-    const vehicleData: Vehicle = {
-      id: existingVehicle?.id || `veh_${Date.now()}`,
-      vin: form.vehicleInfo.vin,
-      registration: form.vehicleInfo.registrationNumber,
-      make: form.vehicleInfo.make,
-      model: form.vehicleInfo.model,
-      year: Number(form.vehicleInfo.year) || 0,
-      mileage: Number(form.vehicleInfo.mileage) || 0,
-      colour: form.vehicleInfo.color,
-      fuelType: form.vehicleInfo.fuelType,
-      transmission: form.vehicleInfo.transmission,
-      classification: form.vehicleInfo.bodyType,
-      status: existingVehicle?.status || 'available',
-      notes: '',
-      ownerName: form.ownerInfo.name,
-      stockNumber: form.vehicleInfo.stockNumber,
-      photos: form.advertisementSlots?.filter((slot) => slot.photo).map((slot) => slot.photo) || form.advertisementPhotos,
-      inspectionId: form.id,
-      listingPrice: form.financial.sellingPrice ?? undefined,
-      createdAt: existingVehicle?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const vehicleData = buildVehicleData(form, existingVehicle, { includeOwnerName: true })
     if (existingVehicle) await updateVehicle(vehicleData);
     else await createVehicle(vehicleData);
   };
