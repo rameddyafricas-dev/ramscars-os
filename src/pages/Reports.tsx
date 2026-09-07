@@ -4,6 +4,8 @@ import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
 import { useDocumentStore } from '../store/useDocumentStore'
+import { useSaleStore } from '../store/useSaleStore'
+import { useCustomerStore } from '../store/useCustomerStore'
 import DocumentPreviewModal from '../components/DocumentPreviewModal'
 import type { InspectionScore } from '../types'
 
@@ -12,6 +14,8 @@ export default function Reports() {
   const { inspections, loadInspections } = useInspectionStore()
   const { loadProfile } = useDealershipStore()
   const { documents, loadDocuments } = useDocumentStore()
+  const { sales, payments, loadSales, loadPayments } = useSaleStore()
+  const { customers, loadCustomers } = useCustomerStore()
 
   const [searchParams] = useSearchParams()
   const initialVehicleId = searchParams.get('vehicle') || ''
@@ -24,7 +28,10 @@ export default function Reports() {
     loadInspections()
     loadProfile()
     loadDocuments()
-  }, [loadVehicles, loadInspections, loadProfile, loadDocuments])
+    loadSales()
+    loadPayments()
+    loadCustomers()
+  }, [loadVehicles, loadInspections, loadProfile, loadDocuments, loadSales, loadPayments, loadCustomers])
 
   useEffect(() => {
     if (initialVehicleId) setSelectedVehicleId(initialVehicleId)
@@ -55,7 +62,17 @@ export default function Reports() {
     return documents.filter(d => d.vehicleId === vehicleId)
   }
 
-  const generateReport = (type: 'internal' | 'customer') => {
+  const openPrintWindow = (html: string, title: string) => {
+    const win = window.open('', '_blank')
+    if (win) {
+      win.document.title = title
+      win.document.write(html)
+      win.document.close()
+      win.print()
+    }
+  }
+
+  const generateVehicleReport = (type: 'internal' | 'customer') => {
     if (!selectedVehicle || !selectedInspection) return
 
     const isInternal = type === 'internal'
@@ -198,43 +215,80 @@ export default function Reports() {
           ${ownerHtml}
           ${locationHtml}
           ${isInternal ? financialHtml : ''}
-          <div class="section">
-            <h2>Faults</h2>
-            ${faultsHtml}
-          </div>
-          <div class="section">
-            <h2>Checklist</h2>
-            <table>
-              <thead>
-                <tr><th>Category</th><th>Item</th><th>Result</th><th>Notes & Media</th></tr>
-              </thead>
-              <tbody>
-                ${checklistHtml}
-              </tbody>
-            </table>
-          </div>
-          <div class="section">
-            <h2>Inspection Score</h2>
-            ${scoreHtml}
-          </div>
-          <div class="section">
-            <h2>Photos</h2>
-            ${photosHtml}
-          </div>
-          <div class="section">
-            <h2>Videos</h2>
-            ${videosHtml}
-          </div>
-          <div class="section">
-            <h2>Documents</h2>
-            ${documentsHtml}
-          </div>
+          <div class="section"><h2>Faults</h2>${faultsHtml}</div>
+          <div class="section"><h2>Checklist</h2><table><thead><tr><th>Category</th><th>Item</th><th>Result</th><th>Notes & Media</th></tr></thead><tbody>${checklistHtml}</tbody></table></div>
+          <div class="section"><h2>Inspection Score</h2>${scoreHtml}</div>
+          <div class="section"><h2>Photos</h2>${photosHtml}</div>
+          <div class="section"><h2>Videos</h2>${videosHtml}</div>
+          <div class="section"><h2>Documents</h2>${documentsHtml}</div>
         </body>
       </html>
     `
 
     setReportTitle(`${isInternal ? 'Internal' : 'Customer'} Vehicle Report`)
     setReportHtml(html)
+  }
+
+  const generateInventorySummaryReport = () => {
+    const vehicleRows = vehicles.map(v => {
+      const insp = inspections.find(i => i.id === v.inspectionId)
+      return `<tr><td>${v.stockNumber || '—'}</td><td>${v.year} ${v.make} ${v.model}</td><td>${v.status}</td><td>${v.mileage.toLocaleString()}</td><td>${v.listingPrice !== undefined ? 'R ' + v.listingPrice.toLocaleString() : '—'}</td><td>${insp ? insp.progress + '%' : '—'}</td></tr>`
+    }).join('')
+
+    const html = `
+      <html>
+        <head><title>Inventory Summary Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 2rem; color: #1f2937; }
+          h1 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+          table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+          th { background: #f3f4f6; }
+        </style></head>
+        <body>
+          <h1>Inventory Summary Report</h1>
+          <p><strong>Total Vehicles:</strong> ${vehicles.length} | <strong>Available:</strong> ${vehicles.filter(v=>v.status==='available').length} | <strong>Reserved:</strong> ${vehicles.filter(v=>v.status==='reserved').length} | <strong>Sold:</strong> ${vehicles.filter(v=>v.status==='sold').length}</p>
+          <table><thead><tr><th>Stock</th><th>Vehicle</th><th>Status</th><th>Mileage</th><th>Price</th><th>Inspection</th></tr></thead><tbody>${vehicleRows}</tbody></table>
+        </body>
+      </html>
+    `
+    setReportTitle('Inventory Summary Report')
+    setReportHtml(html)
+  }
+
+  const generateSalesReport = () => {
+    const salesRows = sales.map(sale => {
+      const vehicle = vehicles.find(v => v.id === sale.vehicleId)
+      const buyer = customers.find(c => c.id === sale.buyerId)
+      const paid = payments.filter(p => p.saleId === sale.id).reduce((sum,p)=>sum+p.amount,0)
+      return `<tr><td>${sale.dateReserved || sale.createdAt || ''}</td><td>${vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '—'}</td><td>${buyer?.name || '—'}</td><td>${sale.status}</td><td>${sale.paymentStatus}</td><td>R ${sale.salePrice.toLocaleString()}</td><td>R ${(sale.deposit||0).toLocaleString()}</td><td>R ${paid.toLocaleString()}</td></tr>`
+    }).join('')
+
+    const html = `
+      <html>
+        <head><title>Sales Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 2rem; color: #1f2937; }
+          h1 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+          table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+          th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+          th { background: #f3f4f6; }
+        </style></head>
+        <body>
+          <h1>Sales Report</h1>
+          <p><strong>Total Sales:</strong> ${sales.length} | <strong>Revenue (Completed):</strong> R ${sales.filter(s=>s.status==='completed').reduce((sum,s)=>sum+s.salePrice,0).toLocaleString()}</p>
+          <table><thead><tr><th>Date</th><th>Vehicle</th><th>Buyer</th><th>Status</th><th>Payment</th><th>Sale Price</th><th>Deposit</th><th>Paid</th></tr></thead><tbody>${salesRows}</tbody></table>
+        </body>
+      </html>
+    `
+    setReportTitle('Sales Report')
+    setReportHtml(html)
+  }
+
+  const handlePrintCurrentReport = () => {
+    if (reportHtml && reportTitle) {
+      openPrintWindow(reportHtml, reportTitle)
+    }
   }
 
   return (
@@ -272,7 +326,7 @@ export default function Reports() {
         <div className="lg:col-span-2 card p-5">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Report Actions</h2>
           {!selectedVehicle || !selectedInspection ? (
-            <p className="text-gray-500">Select a vehicle to generate a report.</p>
+            <p className="text-gray-500">Select a vehicle to generate a vehicle report.</p>
           ) : (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl p-4">
@@ -289,19 +343,18 @@ export default function Reports() {
                 )}
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => generateReport('internal')}
-                  className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700"
-                >
-                  Generate Internal Report
-                </button>
-                <button
-                  onClick={() => generateReport('customer')}
-                  className="flex-1 bg-green-600 text-white px-5 py-3 rounded-xl hover:bg-green-700"
-                >
-                  Generate Customer Report
-                </button>
+                <button onClick={() => generateVehicleReport('internal')} className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Internal Report</button>
+                <button onClick={() => generateVehicleReport('customer')} className="flex-1 bg-green-600 text-white px-5 py-3 rounded-xl hover:bg-green-700">Customer Report</button>
               </div>
+            </div>
+          )}
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <button onClick={generateInventorySummaryReport} className="flex-1 bg-blue-600 text-white px-5 py-3 rounded-xl hover:bg-blue-700">Inventory Summary</button>
+            <button onClick={generateSalesReport} className="flex-1 bg-purple-600 text-white px-5 py-3 rounded-xl hover:bg-purple-700">Sales Report</button>
+          </div>
+          {reportHtml && (
+            <div className="mt-4 flex justify-end">
+              <button onClick={handlePrintCurrentReport} className="bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-gray-900">Print / PDF</button>
             </div>
           )}
         </div>
