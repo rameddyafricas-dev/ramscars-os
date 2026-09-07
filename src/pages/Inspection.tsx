@@ -6,6 +6,9 @@ import { decodeVIN } from '../services/vinEngine'
 import { compressImage } from '../utils/image'
 import { getModelSuggestions } from '../utils/makeModels'
 import CameraModal from '../components/CameraModal'
+import ConfirmDialog from '../components/ConfirmDialog'
+import PromptDialog from '../components/PromptDialog'
+import Toast from '../components/Toast'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
@@ -50,7 +53,7 @@ const commonColors = [
   'Orange', 'Brown', 'Beige', 'Gold', 'Purple', 'Burgundy', 'Champagne', 'Pearl White'
 ]
 
-function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onAddPhotoSlot, onGallery }: {
+function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onRequestAddPhotoSlot, onGallery }: {
   title: string
   items: any[]
   totalSlots: number
@@ -61,6 +64,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
   onPhotoPreview: (src: string) => void
   onPhotoDelete: (itemId: string, index: number, mode: 'photo' | 'slot') => void
   onAddPhotoSlot: (itemId: string, label: string) => void
+  onRequestAddPhotoSlot: (itemId: string) => void
   onGallery: (itemId: string, index: number, file: File) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -197,7 +201,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                   })}
                 </div>
               )}
-              <button onClick={() => { const label = prompt('Photo label:'); if (label) onAddPhotoSlot(item.id, label) }} className="text-xs text-indigo-600 hover:underline">+ Add Photo</button>
+              <button onClick={() => onRequestAddPhotoSlot(item.id)} className="text-xs text-indigo-600 hover:underline">+ Add Photo</button>
             </div>
           ))}
         </div>
@@ -211,12 +215,15 @@ export default function InspectionPage() {
   const [form, setForm] = useState<Inspection | null>(activeInspection)
   const [decodedVIN, setDecodedVIN] = useState<DecodedVIN | null>(null)
   const [showCamera, setShowCamera] = useState(false)
+  const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [promptState, setPromptState] = useState<{ title: string; fields: { key: string; label: string; type?: 'text' | 'number'; placeholder?: string }[]; onSubmit: (values: Record<string, string>) => void } | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null)
   const [loadingCoordinates, setLoadingCoordinates] = useState(false)
   const [loadingLocation, setLoadingLocation] = useState(false)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
@@ -359,7 +366,7 @@ export default function InspectionPage() {
       return;
     }
     if (isCurrentInspectionEmpty()) {
-      alert('Current inspection is empty. Please add some data before starting a new inspection.');
+      setToastMessage('Current inspection is empty. Please add some data before starting a new inspection.');
       return;
     }
     await saveCurrentInspectionToInventory();
@@ -399,30 +406,41 @@ export default function InspectionPage() {
   };
 
   const handleAddAdditionalCost = () => {
-    const label = window.prompt('Specify cost label:');
-    if (!label) return;
-    const amountStr = window.prompt('Amount:');
-    const amount = Number(amountStr);
-    if (isNaN(amount)) return;
-    const newCost = { label, amount };
-    setForm((prev) => prev ? {
-      ...prev,
-      financial: recalcFinancial({
-        ...prev.financial,
-        additionalCosts: [...(prev.financial.additionalCosts || []), newCost],
-      })
-    } : prev);
+    setPromptState({
+      title: 'Add Additional Cost',
+      fields: [
+        { key: 'label', label: 'Cost Label' },
+        { key: 'amount', label: 'Amount', type: 'number' },
+      ],
+      onSubmit: (values) => {
+        const label = values.label;
+        const amount = Number(values.amount);
+        if (!label || isNaN(amount)) return;
+        const newCost = { label, amount };
+        setForm((prev) => prev ? {
+          ...prev,
+          financial: recalcFinancial({
+            ...prev.financial,
+            additionalCosts: [...(prev.financial.additionalCosts || []), newCost],
+          })
+        } : prev);
+      }
+    });
   };
 
   const handleRemoveAdditionalCost = (index: number) => {
-    if (!window.confirm('Remove this cost?')) return;
-    setForm((prev) => prev ? {
-      ...prev,
-      financial: recalcFinancial({
-        ...prev.financial,
-        additionalCosts: prev.financial.additionalCosts?.filter((_, i) => i !== index),
-      })
-    } : prev);
+    setConfirmState({
+      message: 'Remove this cost?',
+      onConfirm: () => {
+        setForm((prev) => prev ? {
+          ...prev,
+          financial: recalcFinancial({
+            ...prev.financial,
+            additionalCosts: prev.financial.additionalCosts?.filter((_, i) => i !== index),
+          })
+        } : prev);
+      }
+    });
   };
 
   const showCoordinates = () => {
@@ -436,7 +454,7 @@ export default function InspectionPage() {
       window.open(`https://www.google.com/maps?q=${parts[0]},${parts[1]}`, '_blank');
       setTimeout(() => setLoadingCoordinates(false), 800);
     } else {
-      alert('Enter valid coordinates');
+      setToastMessage('Enter valid coordinates');
     }
   };
 
@@ -450,17 +468,20 @@ export default function InspectionPage() {
         setTimeout(() => setLoadingLocation(false), 800);
       }, (err) => {
         console.error('Geolocation error:', err);
-        alert('Unable to get current location. Please allow location access.');
+        setToastMessage('Unable to get current location. Please allow location access.');
       });
     } else {
-      alert('Geolocation not supported.');
+      setToastMessage('Geolocation not supported.');
     }
   };
 
   const clearLocation = () => {
-    if (window.confirm('Clear location?')) {
-      setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
-    }
+    setConfirmState({
+      message: 'Clear location?',
+      onConfirm: () => {
+        setForm({ ...form, location: { dms: '', decimal: '', gps: undefined, bay: '' } })
+      }
+    });
   };
 
   const handleOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, ownerInfo: { ...form.ownerInfo, [e.target.name]: e.target.value } })
@@ -603,6 +624,16 @@ export default function InspectionPage() {
       })
     }) : prev)
   }
+
+  const handleRequestAddPhotoSlot = (itemId: string) => {
+    setPromptState({
+      title: 'Add Photo Slot',
+      fields: [{ key: 'label', label: 'Photo Label' }],
+      onSubmit: (values) => {
+        if (values.label) handleAddPhotoSlot(itemId, values.label);
+      }
+    });
+  };
 
   const handleAddPhotoSlot = (itemId: string, label: string) => {
     setForm((prev) => prev ? ({
@@ -817,7 +848,7 @@ export default function InspectionPage() {
         {form.faults.map((fault) => (
           <div key={fault.id} className="flex gap-2 mb-2">
             <input value={fault.description} onChange={(e) => handleFaultChange(fault.id, e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 flex-1" placeholder="Describe fault" />
-            <button onClick={() => { if (window.confirm('Delete this fault?')) handleFaultDelete(fault.id) }} className="bg-red-50 text-red-600 px-3 rounded-xl">✕</button>
+            <button onClick={() => setConfirmState({ message: 'Delete this fault?', onConfirm: () => handleFaultDelete(fault.id) })} className="bg-red-50 text-red-600 px-3 rounded-xl">✕</button>
           </div>
         ))}
         <button onClick={handleFaultAdd} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100">+ Add Fault</button>
@@ -888,7 +919,7 @@ export default function InspectionPage() {
                   )}
                   {slot.photo && (
                     <button
-                      onClick={() => { if (window.confirm('Delete this media?')) handleDeleteAdMedia(slot.id) }}
+                      onClick={() => setConfirmState({ message: 'Delete this media?', onConfirm: () => handleDeleteAdMedia(slot.id) })}
                       className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
                     >
                       Delete
@@ -932,6 +963,7 @@ export default function InspectionPage() {
         onPhotoPreview={setSelectedPhoto}
         onPhotoDelete={handleChecklistPhotoDelete}
         onAddPhotoSlot={handleAddPhotoSlot}
+        onRequestAddPhotoSlot={handleRequestAddPhotoSlot}
         onGallery={handleChecklistGallery}
       />
     );
@@ -1019,6 +1051,27 @@ export default function InspectionPage() {
       {showCamera && <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />}
       {selectedPhoto && <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />}
       {selectedVideo && <VideoModal src={selectedVideo} onClose={() => setSelectedVideo(null)} />}
+
+      {confirmState && (
+        <ConfirmDialog
+          open={confirmState !== null}
+          title="Confirm"
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
+      {promptState && (
+        <PromptDialog
+          open={promptState !== null}
+          title={promptState.title}
+          fields={promptState.fields}
+          onSubmit={(values) => { promptState.onSubmit(values); setPromptState(null); }}
+          onCancel={() => setPromptState(null)}
+        />
+      )}
+
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </div>
   )
 }

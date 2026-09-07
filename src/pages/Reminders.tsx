@@ -4,6 +4,7 @@ import { useReminderStore } from '../store/useReminderStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
 import type { Reminder } from '../types'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function Reminders() {
   const { reminders, loadReminders, createReminder, updateReminder, deleteReminder } = useReminderStore()
@@ -19,6 +20,7 @@ export default function Reminders() {
   const [category, setCategory] = useState<Reminder['category']>('general')
   const [priority, setPriority] = useState<Reminder['priority']>('medium')
   const [notes, setNotes] = useState('')
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('pending')
   const [search, setSearch] = useState('')
 
@@ -149,6 +151,15 @@ export default function Reminders() {
   }
 
   return (
+    <>
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete Reminder"
+        message="Are you sure you want to delete this reminder?"
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteTargetId) deleteReminder(deleteTargetId); setDeleteTargetId(null); }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Reminders & Service History</h1>
@@ -239,7 +250,7 @@ export default function Reminders() {
                       {reminder.completed && (
                         <button onClick={() => toggleComplete(reminder)} className="text-xs text-amber-600 hover:underline">Reopen</button>
                       )}
-                      <button onClick={() => { if (window.confirm('Delete this reminder?')) deleteReminder(reminder.id) }} className="text-xs text-red-600 hover:underline">Delete</button>
+                      <button onClick={() => setDeleteTargetId(reminder.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                     </div>
                   </div>
                 )
@@ -249,5 +260,6 @@ export default function Reminders() {
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -208,5 +208,3 @@ for (const [wmi, entry] of Object.entries(ADDITIONAL_WMI_DATABASE)) {
     WMI_DATABASE[wmi] = entry;
   }
 }
-
-

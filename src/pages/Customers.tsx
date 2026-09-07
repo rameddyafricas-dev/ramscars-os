@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useSaleStore } from '../store/useSaleStore'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
 import type { Customer, CustomerRole } from '../types'
@@ -16,6 +17,7 @@ export default function Customers() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | CustomerRole>('all')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const [customerForm, setCustomerForm] = useState({
     name: '',
@@ -72,17 +74,30 @@ export default function Customers() {
     setCustomerForm({ name: customer.name, phone: customer.phone || '', email: customer.email || '', address: customer.address || '', role: customer.role, notes: customer.notes || '' })
   }
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Delete this customer?')) {
-      await deleteCustomer(id)
-      if (editingCustomer?.id === id) {
-        setEditingCustomer(null)
-        setCustomerForm({ name: '', phone: '', email: '', address: '', role: 'other', notes: '' })
-      }
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return
+    await deleteCustomer(deleteTargetId)
+    if (editingCustomer?.id === deleteTargetId) {
+      setEditingCustomer(null)
+      setCustomerForm({ name: '', phone: '', email: '', address: '', role: 'other', notes: '' })
     }
+    setDeleteTargetId(null)
   }
 
   return (
+    <>
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete Customer"
+        message="Are you sure you want to delete this customer?"
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
@@ -168,5 +183,6 @@ export default function Customers() {
         )}
       </div>
     </div>
+    </>
   )
 }

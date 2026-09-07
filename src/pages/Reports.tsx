@@ -3,12 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
+import { useDocumentStore } from '../store/useDocumentStore'
 import DocumentPreviewModal from '../components/DocumentPreviewModal'
+import type { InspectionScore } from '../types'
 
 export default function Reports() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections } = useInspectionStore()
-  const { profile, loadProfile } = useDealershipStore()
+  const { loadProfile } = useDealershipStore()
+  const { documents, loadDocuments } = useDocumentStore()
 
   const [searchParams] = useSearchParams()
   const initialVehicleId = searchParams.get('vehicle') || ''
@@ -20,7 +23,8 @@ export default function Reports() {
     loadVehicles()
     loadInspections()
     loadProfile()
-  }, [loadVehicles, loadInspections, loadProfile])
+    loadDocuments()
+  }, [loadVehicles, loadInspections, loadProfile, loadDocuments])
 
   useEffect(() => {
     if (initialVehicleId) setSelectedVehicleId(initialVehicleId)
@@ -31,68 +35,169 @@ export default function Reports() {
     (i) => i.id === selectedVehicle?.inspectionId
   )
 
-  const dealershipLocation = profile?.address || 'Dealership address not set'
+  const getAdvertisementPhotos = (inspection: NonNullable<typeof selectedInspection>): string[] => {
+    const slotPhotos = inspection.advertisementSlots
+      ? inspection.advertisementSlots.filter(s => s.photo && s.photo.trim() !== '').map(s => s.photo)
+      : []
+    const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : []
+    return Array.from(new Set([...slotPhotos, ...legacyPhotos]))
+  }
+
+  const getAdvertisementVideos = (inspection: NonNullable<typeof selectedInspection>): string[] => {
+    if (!inspection.advertisementSlots) return []
+    return inspection.advertisementSlots
+      .filter(s => s.id === 'adv_video' || s.label === 'Video')
+      .map(s => s.photo)
+      .filter(p => p && p.trim() !== '')
+  }
+
+  const getVehicleDocuments = (vehicleId: string): typeof documents => {
+    return documents.filter(d => d.vehicleId === vehicleId)
+  }
 
   const generateReport = (type: 'internal' | 'customer') => {
     if (!selectedVehicle || !selectedInspection) return
 
-    const location = type === 'internal'
-      ? selectedInspection.location.decimal || selectedInspection.location.dms || dealershipLocation
-      : dealershipLocation
+    const isInternal = type === 'internal'
+    const vehicleInfo = selectedInspection.vehicleInfo
+
+    const vehicleHtml = `
+      <div class="section">
+        <h2>Vehicle Information</h2>
+        <p><span class="label">Vehicle:</span> ${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model}</p>
+        <p><span class="label">Stock Number:</span> ${vehicleInfo.stockNumber || '—'}</p>
+        <p><span class="label">VIN:</span> ${vehicleInfo.vin || '—'}</p>
+        <p><span class="label">Vehicle Type:</span> ${vehicleInfo.vehicleType}</p>
+        <p><span class="label">Body Type:</span> ${vehicleInfo.bodyType || '—'}</p>
+        <p><span class="label">Year:</span> ${vehicleInfo.year}</p>
+        <p><span class="label">Colour:</span> ${vehicleInfo.color || '—'}</p>
+        <p><span class="label">Mileage:</span> ${vehicleInfo.mileage ? `${Number(vehicleInfo.mileage).toLocaleString()} km` : '—'}</p>
+        <p><span class="label">Transmission:</span> ${vehicleInfo.transmission}</p>
+        <p><span class="label">Fuel Type:</span> ${vehicleInfo.fuelType}</p>
+        <p><span class="label">Registration Number:</span> ${vehicleInfo.registrationNumber || '—'}</p>
+        <p><span class="label">License Expiry:</span> ${vehicleInfo.licenseExpiry || '—'}</p>
+        <p><span class="label">Engine Number:</span> ${vehicleInfo.engineNumber || '—'}</p>
+        <p><span class="label">Vehicle Papers:</span> ${vehicleInfo.vehiclePapers.replace('_', ' ')}</p>
+        <p><span class="label">Vehicle Status:</span> ${vehicleInfo.vehicleStatus || '—'}</p>
+      </div>
+    `
+
+    const ownerHtml = isInternal ? `
+      <div class="section">
+        <h2>Owner Information</h2>
+        <p><span class="label">Name:</span> ${selectedInspection.ownerInfo.name || '—'}</p>
+        <p><span class="label">Contact:</span> ${selectedInspection.ownerInfo.contactNumber || '—'}</p>
+        <p><span class="label">Email:</span> ${selectedInspection.ownerInfo.email || '—'}</p>
+        <p><span class="label">ID Number:</span> ${selectedInspection.ownerInfo.idNumber || '—'}</p>
+        <p><span class="label">Address:</span> ${selectedInspection.ownerInfo.physicalAddress || '—'}</p>
+      </div>
+    ` : ''
+
+    const locationHtml = isInternal ? `
+      <div class="section">
+        <h2>Location</h2>
+        <p><span class="label">DMS:</span> ${selectedInspection.location.dms || '—'}</p>
+        <p><span class="label">Decimal:</span> ${selectedInspection.location.decimal || '—'}</p>
+        <p><span class="label">Bay:</span> ${selectedInspection.location.bay || '—'}</p>
+        <p><span class="label">Pinned:</span> ${selectedInspection.location.gps ? `${selectedInspection.location.gps.lat.toFixed(6)}, ${selectedInspection.location.gps.lng.toFixed(6)}` : '—'}</p>
+      </div>
+    ` : ''
 
     const faultsHtml = selectedInspection.faults.length > 0
       ? selectedInspection.faults.map((f) => `<p>• ${f.description}</p>`).join('')
       : '<p>No faults recorded</p>'
 
-    const checklistHtml = selectedInspection.checklist.map((c) => `
-      <tr>
-        <td>${c.category}</td>
-        <td>${c.label}</td>
-        <td>${c.result || 'Not set'}</td>
-        <td>${c.note ? `📝 ${c.note}` : '—'}</td>
-      </tr>
-    `).join('')
+    const checklistHtml = selectedInspection.checklist.map((c) => {
+      const mediaHtml = (c.mediaIds || []).filter(m => m).map((m) => {
+        if (m.startsWith('data:image')) {
+          return `<img src="${m}" style="max-width:120px; margin:4px;" />`
+        }
+        return `<a href="${m}" target="_blank">Media</a>`
+      }).join('')
+      return `
+        <tr>
+          <td>${c.category}</td>
+          <td>${c.label}</td>
+          <td>${c.result || 'Not set'}</td>
+          <td>${c.note ? `📝 ${c.note}` : '—'} ${mediaHtml ? `<br/>${mediaHtml}` : ''}</td>
+        </tr>
+      `
+    }).join('')
+
+    const scoreLabels: Record<keyof InspectionScore, string> = {
+      mechanical: 'Mechanical',
+      interior: 'Interior',
+      exterior: 'Exterior',
+      electrical: 'Electrical',
+      safety: 'Safety',
+      body: 'Body',
+      engine: 'Engine',
+      suspension: 'Suspension',
+    }
+    const scoreHtml = Object.entries(scoreLabels).map(([key, label]) => {
+      const val = selectedInspection.score[key as keyof InspectionScore]
+      return `<p><span class="label">${label}:</span> ${val !== null && val !== undefined ? `${val}%` : '—'}</p>`
+    }).join('')
+
+    const photos = getAdvertisementPhotos(selectedInspection)
+    const videos = getAdvertisementVideos(selectedInspection)
+    const vehicleDocuments = getVehicleDocuments(selectedVehicle.id)
+
+    const photosHtml = photos.length > 0
+      ? photos.map(photo => `<img src="${photo}" />`).join('')
+      : '<p>No photos</p>'
+
+    const videosHtml = videos.length > 0
+      ? videos.map(video => `<video controls style="max-width:300px; margin:4px;" src="${video}"></video>`).join('')
+      : '<p>No videos</p>'
+
+    const documentsHtml = vehicleDocuments.length > 0
+      ? vehicleDocuments.map(doc => `
+          <div style="margin-bottom:8px;">
+            <p><span class="label">${doc.title}</span> (${doc.type})</p>
+            ${doc.fileUrl ? `<a href="${doc.fileUrl}" target="_blank">Open Document</a>` : ''}
+          </div>
+        `).join('')
+      : '<p>No documents</p>'
+
+    const financialHtml = `
+      <div class="section">
+        <h2>Financial Information</h2>
+        <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? '—'}</p>
+        <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? '—'}</p>
+        <p><span class="label">Trade Value:</span> R ${selectedInspection.financial.tradeValue ?? '—'}</p>
+        <p><span class="label">Estimated Profit:</span> R ${selectedInspection.financial.estimatedProfit ?? '—'}</p>
+        <p><span class="label">Expected Margin:</span> ${selectedInspection.financial.expectedMargin !== null && selectedInspection.financial.expectedMargin !== undefined ? `${selectedInspection.financial.expectedMargin.toFixed(2)}%` : '—'}</p>
+        ${selectedInspection.financial.additionalCosts && selectedInspection.financial.additionalCosts.length > 0 ? `
+          <p><span class="label">Additional Costs:</span></p>
+          ${selectedInspection.financial.additionalCosts.map(cost => `<p>${cost.label}: R ${cost.amount.toLocaleString()}</p>`).join('')}
+        ` : ''}
+      </div>
+    `
 
     const html = `
       <html>
         <head>
-          <title>${type === 'internal' ? 'Internal' : 'Customer'} Vehicle Report</title>
+          <title>${isInternal ? 'Internal' : 'Customer'} Vehicle Report</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 2rem; color: #1f2937; }
             h1 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
             .section { margin-bottom: 1.5rem; }
             .label { font-weight: bold; color: #4b5563; }
             table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
             th { background: #f3f4f6; }
-            img { max-width: 180px; height: auto; margin: 0 10px 10px 0; border-radius: 8px; }
+            img { max-width: 180px; height: auto; margin: 4px; border-radius: 8px; }
+            video { max-width: 300px; margin: 4px; }
+            a { color: #4f46e5; }
           </style>
         </head>
         <body>
-          <h1>${type === 'internal' ? 'Internal' : 'Customer'} Vehicle Report</h1>
-          <div class="section">
-            <p><span class="label">Stock Number:</span> ${selectedInspection.vehicleInfo.stockNumber || '—'}</p>
-            <p><span class="label">Vehicle:</span> ${selectedInspection.vehicleInfo.year} ${selectedInspection.vehicleInfo.make} ${selectedInspection.vehicleInfo.model}</p>
-            <p><span class="label">VIN:</span> ${selectedInspection.vehicleInfo.vin || '—'}</p>
-            <p><span class="label">Mileage:</span> ${selectedInspection.vehicleInfo.mileage || '—'} km</p>
-            <p><span class="label">Transmission:</span> ${selectedInspection.vehicleInfo.transmission}</p>
-            <p><span class="label">Fuel Type:</span> ${selectedInspection.vehicleInfo.fuelType}</p>
-            <p><span class="label">Colour:</span> ${selectedInspection.vehicleInfo.color || '—'}</p>
-            <p><span class="label">Location:</span> ${location}</p>
-          </div>
-          ${type === 'internal' ? `
-            <div class="section">
-              <h2>Owner Information</h2>
-              <p><span class="label">Name:</span> ${selectedInspection.ownerInfo.name || '—'}</p>
-              <p><span class="label">Contact:</span> ${selectedInspection.ownerInfo.contactNumber || '—'}</p>
-              <p><span class="label">Email:</span> ${selectedInspection.ownerInfo.email || '—'}</p>
-            </div>
-            <div class="section">
-              <h2>Financial Information</h2>
-              <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? 0}</p>
-              <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? 0}</p>
-            </div>
-          ` : ''}
+          <h1>${isInternal ? 'Internal' : 'Customer'} Vehicle Report</h1>
+          ${vehicleHtml}
+          ${ownerHtml}
+          ${locationHtml}
+          ${isInternal ? financialHtml : ''}
           <div class="section">
             <h2>Faults</h2>
             ${faultsHtml}
@@ -101,7 +206,7 @@ export default function Reports() {
             <h2>Checklist</h2>
             <table>
               <thead>
-                <tr><th>Category</th><th>Item</th><th>Result</th><th>Notes</th></tr>
+                <tr><th>Category</th><th>Item</th><th>Result</th><th>Notes & Media</th></tr>
               </thead>
               <tbody>
                 ${checklistHtml}
@@ -109,14 +214,26 @@ export default function Reports() {
             </table>
           </div>
           <div class="section">
+            <h2>Inspection Score</h2>
+            ${scoreHtml}
+          </div>
+          <div class="section">
             <h2>Photos</h2>
-            ${selectedInspection.advertisementPhotos.map((photo) => `<img src="${photo}" />`).join('') || '<p>No photos</p>'}
+            ${photosHtml}
+          </div>
+          <div class="section">
+            <h2>Videos</h2>
+            ${videosHtml}
+          </div>
+          <div class="section">
+            <h2>Documents</h2>
+            ${documentsHtml}
           </div>
         </body>
       </html>
     `
 
-    setReportTitle(`${type === 'internal' ? 'Internal' : 'Customer'} Vehicle Report`)
+    setReportTitle(`${isInternal ? 'Internal' : 'Customer'} Vehicle Report`)
     setReportHtml(html)
   }
 

@@ -6,7 +6,6 @@ import {
   YEAR_CODES_FIRST_CYCLE,
   getRegionFromFirstChar,
   isChecksumApplicable,
-  VIN_KNOWLEDGE_POLICY_VERSION
 } from './vinKnowledgeBase';
 
 import {
@@ -235,6 +234,12 @@ function unknownField(): FieldConfidence {
   );
 }
 
+function normalizeManufacturerName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ');
+}
 
 function mergeEvidence(
   ...groups: EvidenceItem[][]
@@ -896,10 +901,7 @@ export function decodeVIN(rawVin: string): DecodedVIN {
     gvm,
     safety,
 
-    confidence: {
-        overall: overall.level,
-        score: overall.score,
-      },
+    confidence: overall,
 
     evidence,
     conflicts,
@@ -940,7 +942,7 @@ export function explainVIN(
     `Region: ${result.region}`,
     `Model Year: ${result.modelYear.value}`,
     `Year Candidates: ${result.modelYearCandidates.join(', ') || 'None'}`,
-    `Model: ${result.model?.value ?? 'Unknown'} [${result.model?.level ?? 'UNKNOWN'}/${result.model?.score ?? 0}]`,
+    `Model: ${result.model.value}`,
     `Variant: ${result.variant?.value ?? 'Unknown'}`,
     `Trim: ${result.trim?.value ?? 'Unknown'}`,
     `Engine: ${result.engine?.value ?? 'Unknown'}`,

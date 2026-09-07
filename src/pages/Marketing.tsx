@@ -2,22 +2,29 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
-import type { Inspection, MarketingInfo } from '../types'
+import { useDealershipStore } from '../store/useDealershipStore'
+import type { Inspection, MarketingInfo, Vehicle } from '../types'
+import Toast from '../components/Toast'
 
 export default function Marketing() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections, updateInspection } = useInspectionStore()
+  const { profile, loadProfile } = useDealershipStore()
   const [searchParams] = useSearchParams()
   const vehicleParam = searchParams.get('vehicle') || ''
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<MarketingInfo | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [generatedAdImage, setGeneratedAdImage] = useState<string | null>(null)
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
-  }, [loadVehicles, loadInspections])
+    loadProfile()
+  }, [loadVehicles, loadInspections, loadProfile])
 
   useEffect(() => {
     if (!vehicleParam || vehicles.length === 0 || inspections.length === 0) return
@@ -90,27 +97,161 @@ export default function Marketing() {
     setEditForm({ ...editForm, channels })
   }
 
-  const getListingText = (marketing: MarketingInfo) => {
-    return `${marketing.title}\n${marketing.description}\n${marketing.hashtags.join(' ')}`
+  const getListingText = (marketing: MarketingInfo, vehicle: Vehicle) => {
+    const pricePart = vehicle.listingPrice !== undefined ? `R ${vehicle.listingPrice.toLocaleString()}` : 'Contact for price'
+    const dealerPart = profile ? `${profile.name} | ${profile.phone} | ${profile.email}` : ''
+    return `${marketing.title}\n${marketing.description}\nPrice: ${pricePart}\n${dealerPart}\n${marketing.hashtags.join(' ')}`
   }
 
-  const handleCopy = async (id: string, marketing: MarketingInfo) => {
+  const handleCopy = async (id: string, marketing: MarketingInfo, vehicle: Vehicle) => {
     try {
-      await navigator.clipboard.writeText(getListingText(marketing))
+      await navigator.clipboard.writeText(getListingText(marketing, vehicle))
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
     } catch (err) {
-      alert('Failed to copy listing text.')
+      setToastMessage('Failed to copy listing text.')
     }
   }
 
   const openShare = (channel: string, text: string) => {
     const encoded = encodeURIComponent(text)
-    const url = channel === 'whatsapp' ? `https://wa.me/?text=${encoded}` :
-                channel === 'facebook' ? `https://www.facebook.com/sharer/sharer.php?u=${encoded}` :
-                channel === 'twitter' ? `https://twitter.com/intent/tweet?text=${encoded}` :
-                channel === 'email' ? `mailto:?body=${encoded}` : ''
+    const url =
+      channel === 'whatsapp' ? `https://wa.me/?text=${encoded}` :
+      channel === 'facebook' ? `https://www.facebook.com/sharer/sharer.php?u=${encoded}` :
+      channel === 'twitter' ? `https://twitter.com/intent/tweet?text=${encoded}` :
+      channel === 'telegram' ? `https://t.me/share/url?url=${encoded}&text=${encoded}` :
+      channel === 'linkedin' ? `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}` :
+      channel === 'email' ? `mailto:?body=${encoded}` :
+      channel === 'sms' ? `sms:?body=${encoded}` : ''
     if (url) window.open(url, '_blank')
+  }
+
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  const getAdvertisementPhotos = (inspection: Inspection): string[] => {
+    const slotPhotos = inspection.advertisementSlots
+      ? inspection.advertisementSlots.filter(s => s.photo && s.photo.trim() !== '').map(s => s.photo)
+      : [];
+    const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : [];
+    const combined = [...slotPhotos, ...legacyPhotos];
+    return Array.from(new Set(combined));
+  };
+
+  const generateAdImage = async (vehicle: Vehicle, inspection: Inspection): Promise<string> => {
+    const adPhotos = getAdvertisementPhotos(inspection);
+    const sourcePhotos = adPhotos.length > 0 ? adPhotos : (vehicle.photos && vehicle.photos.length > 0 ? vehicle.photos : []);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    // Background
+    const gradient = ctx.createLinearGradient(0, 0, 800, 600);
+    gradient.addColorStop(0, '#1e293b');
+    gradient.addColorStop(1, '#4f46e5');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (sourcePhotos.length > 0) {
+      const images: HTMLImageElement[] = [];
+      for (const src of sourcePhotos) {
+        try {
+          const img = await loadImage(src);
+          images.push(img);
+        } catch (err) {
+          console.warn('Failed to load image', src, err);
+        }
+      }
+
+      if (images.length > 0) {
+        const cols = images.length >= 3 ? 3 : images.length;
+        const rows = Math.ceil(images.length / cols);
+        const padding = 10;
+        const availableWidth = canvas.width - padding * 2;
+        const availableHeight = 400; // leave space for text overlay
+        const cellWidth = availableWidth / cols;
+        const cellHeight = availableHeight / rows;
+
+        images.forEach((img, idx) => {
+          const row = Math.floor(idx / cols);
+          const col = idx % cols;
+          const x = padding + col * cellWidth;
+          const y = padding + row * cellHeight;
+          // cover crop within cell
+          const scale = Math.max(cellWidth / img.width, cellHeight / img.height);
+          const dw = img.width * scale;
+          const dh = img.height * scale;
+          const dx = x + (cellWidth - dw) / 2;
+          const dy = y + (cellHeight - dh) / 2;
+          ctx.drawImage(img, dx, dy, dw, dh);
+          // subtle border
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 2, y + 2, cellWidth - 4, cellHeight - 4);
+        });
+      }
+    }
+
+    // Bottom overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, canvas.height - 140, canvas.width, 140);
+
+    // Title
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 26px Arial';
+    ctx.fillText(`${vehicle.year} ${vehicle.make} ${vehicle.model}`, 30, canvas.height - 95);
+
+    // Price
+    const priceText = vehicle.listingPrice !== undefined ? `R ${vehicle.listingPrice.toLocaleString()}` : 'Contact for price';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(priceText, 30, canvas.height - 60);
+
+    // Dealer info
+    if (profile) {
+      ctx.font = '18px Arial';
+      ctx.fillStyle = 'white';
+      ctx.fillText(`${profile.name} | ${profile.phone}`, 30, canvas.height - 30);
+    }
+
+    // Stock
+    if (vehicle.stockNumber) {
+      ctx.font = '16px Arial';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(`Stock: ${vehicle.stockNumber}`, 30, canvas.height - 10);
+    }
+
+    return canvas.toDataURL('image/jpeg', 0.9);
+  };
+
+  const handleGenerateAdImage = async (vehicle: Vehicle, inspection: Inspection) => {
+    setGeneratingId(vehicle.id);
+    try {
+      const dataUrl = await generateAdImage(vehicle, inspection);
+      setGeneratedAdImage(dataUrl);
+    } catch (err) {
+      setToastMessage('Failed to generate ad image.');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  const downloadAdImage = () => {
+    if (!generatedAdImage) return
+    const a = document.createElement('a')
+    a.href = generatedAdImage
+    a.download = `ad-${Date.now()}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   return (
@@ -132,18 +273,15 @@ export default function Marketing() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{vehicle.year} {vehicle.make} {vehicle.model}</h3>
                   <p className="text-sm text-gray-500">Stock: {vehicle.stockNumber || '—'}</p>
+                  {vehicle.listingPrice !== undefined && (
+                    <p className="text-green-700 font-medium">R {vehicle.listingPrice.toLocaleString()}</p>
+                  )}
                 </div>
                 <div className="flex gap-1">
-                  <button
-                    onClick={() => startEdit(inspection!)}
-                    className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-sm hover:bg-indigo-200"
-                  >
+                  <button onClick={() => startEdit(inspection!)} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-sm hover:bg-indigo-200">
                     {editingId === inspection!.id ? 'Cancel' : 'Edit'}
                   </button>
-                  <button
-                    onClick={() => handleCopy(inspection!.id, inspection!.marketing)}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-200"
-                  >
+                  <button onClick={() => handleCopy(inspection!.id, inspection!.marketing, vehicle)} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-200">
                     {copiedId === inspection!.id ? '✓ Copied' : 'Copy'}
                   </button>
                 </div>
@@ -179,11 +317,27 @@ export default function Marketing() {
                     ))}
                   </div>
                   {savedId === inspection!.id && <p className="text-green-600 text-xs">✓ Saved</p>}
-                  <div className="flex gap-2 pt-2">
-                    <button onClick={() => openShare('whatsapp', getListingText(inspection!.marketing))} className="text-green-600 text-xs hover:underline">WhatsApp</button>
-                    <button onClick={() => openShare('facebook', getListingText(inspection!.marketing))} className="text-blue-600 text-xs hover:underline">Facebook</button>
-                    <button onClick={() => openShare('twitter', getListingText(inspection!.marketing))} className="text-sky-600 text-xs hover:underline">Twitter</button>
-                    <button onClick={() => openShare('email', getListingText(inspection!.marketing))} className="text-gray-600 text-xs hover:underline">Email</button>
+
+                  {/* Share buttons */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <button onClick={() => openShare('whatsapp', getListingText(inspection!.marketing, vehicle))} className="text-green-600 text-xs hover:underline">WhatsApp</button>
+                    <button onClick={() => openShare('facebook', getListingText(inspection!.marketing, vehicle))} className="text-blue-600 text-xs hover:underline">Facebook</button>
+                    <button onClick={() => openShare('twitter', getListingText(inspection!.marketing, vehicle))} className="text-sky-600 text-xs hover:underline">Twitter</button>
+                    <button onClick={() => openShare('telegram', getListingText(inspection!.marketing, vehicle))} className="text-blue-500 text-xs hover:underline">Telegram</button>
+                    <button onClick={() => openShare('linkedin', getListingText(inspection!.marketing, vehicle))} className="text-blue-700 text-xs hover:underline">LinkedIn</button>
+                    <button onClick={() => openShare('email', getListingText(inspection!.marketing, vehicle))} className="text-gray-600 text-xs hover:underline">Email</button>
+                    <button onClick={() => openShare('sms', getListingText(inspection!.marketing, vehicle))} className="text-indigo-600 text-xs hover:underline">SMS</button>
+                  </div>
+
+                  {/* Ad image generation */}
+                  <div className="pt-2 border-t mt-3">
+                    <button
+                      onClick={() => handleGenerateAdImage(vehicle, inspection!)}
+                      disabled={generatingId === vehicle.id}
+                      className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-medium hover:bg-purple-200 disabled:opacity-50"
+                    >
+                      {generatingId === vehicle.id ? 'Generating...' : 'Generate Ad Image'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -191,6 +345,27 @@ export default function Marketing() {
           ))}
         </div>
       )}
+
+      {/* Generated ad image preview modal */}
+      {generatedAdImage && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setGeneratedAdImage(null)}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 flex justify-between items-center border-b">
+              <h3 className="font-semibold text-gray-800">Generated Ad Image</h3>
+              <button onClick={() => setGeneratedAdImage(null)} className="text-gray-500 hover:text-gray-800">✕</button>
+            </div>
+            <div className="p-4">
+              <img src={generatedAdImage} alt="Generated ad" className="w-full rounded-lg" />
+            </div>
+            <div className="p-4 flex justify-end gap-2 border-t">
+              <button onClick={downloadAdImage} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">Download</button>
+              <button onClick={() => setGeneratedAdImage(null)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl text-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </div>
   )
 }

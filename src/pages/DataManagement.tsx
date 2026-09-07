@@ -6,6 +6,7 @@ export default function DataManagement() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const loadCounts = async () => {
     try {
@@ -47,10 +48,8 @@ export default function DataManagement() {
       const backup = JSON.parse(text) as BackupFile
       if (!backup.data) throw new Error('Invalid backup file')
 
-      // Clear existing data
       await clearAllData()
 
-      // Import each store
       const stores = Object.keys(backup.data) as (keyof DBStores)[]
       for (const store of stores) {
         const records = backup.data[store]
@@ -70,9 +69,12 @@ export default function DataManagement() {
     e.target.value = ''
   }
 
-  const handleClear = async () => {
-    const confirmed = window.confirm('Are you sure? This deletes ALL local data and cannot be undone.')
-    if (!confirmed) return
+  const handleClear = () => {
+    setShowClearConfirm(true)
+  }
+
+  const handleClearConfirmed = async () => {
+    setShowClearConfirm(false)
     try {
       await clearAllData()
       setStatus('All data cleared')
@@ -138,6 +140,19 @@ export default function DataManagement() {
           </button>
         </div>
       </div>
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowClearConfirm(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Clear All Data</h3>
+            <p className="text-sm text-gray-600 mb-4">Are you sure? This deletes ALL local data and cannot be undone.</p>
+            <div className="flex gap-2">
+              <button onClick={handleClearConfirmed} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700">Delete All</button>
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-xl hover:bg-gray-300">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

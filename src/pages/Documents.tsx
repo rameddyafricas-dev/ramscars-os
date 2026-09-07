@@ -5,6 +5,7 @@ import { generateId } from '../utils/id'
 import { compressImage } from '../utils/image'
 import type { Document } from '../types'
 import DocumentPreviewModal from '../components/DocumentPreviewModal'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function Documents() {
   const { documents, loadDocuments, createDocument, deleteDocument } = useDocumentStore()
@@ -14,6 +15,7 @@ export default function Documents() {
   const [type, setType] = useState('legal')
   const [fileData, setFileData] = useState('')
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [dragActive, setDragActive] = useState(false)
@@ -83,6 +85,15 @@ export default function Documents() {
   }
 
   return (
+    <>
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        title="Delete Document"
+        message="Are you sure you want to delete this document?"
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteTargetId) deleteDocument(deleteTargetId); setDeleteTargetId(null); }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
@@ -155,7 +166,7 @@ export default function Documents() {
                       {doc.fileUrl && (
                         <button onClick={() => setPreviewDoc(doc)} className="text-indigo-600 text-sm hover:underline">View</button>
                       )}
-                      <button onClick={() => { if (window.confirm('Delete this document?')) deleteDocument(doc.id) }} className="text-red-600 text-sm hover:underline">Delete</button>
+                      <button onClick={() => setDeleteTargetId(doc.id)} className="text-red-600 text-sm hover:underline">Delete</button>
                     </div>
                   </div>
                 )
@@ -174,5 +185,6 @@ export default function Documents() {
         />
       )}
     </div>
+    </>
   )
 }

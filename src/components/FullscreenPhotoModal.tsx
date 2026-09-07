@@ -6,7 +6,7 @@ interface FullscreenPhotoModalProps {
 export default function FullscreenPhotoModal({ src, onClose }: FullscreenPhotoModalProps) {
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999]"
       onClick={onClose}
     >
       <img

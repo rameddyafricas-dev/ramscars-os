@@ -367,18 +367,40 @@ export default function Inventory() {
               <p><span className="font-medium">Price:</span> {quickViewVehicle.listingPrice !== undefined ? `R ${quickViewVehicle.listingPrice.toLocaleString()}` : '—'}</p>
             </div>
             {quickViewDetails.inspection && (
-              <div className="mt-4 bg-gray-50 rounded-xl p-4">
-                <h3 className="font-medium mb-2">Inspection Progress</h3>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full">
-                    <div className="h-2 bg-indigo-500 rounded-full" style={{ width: `${quickViewDetails.progress}%` }}></div>
+              <>
+                <div className="mt-4 bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-medium mb-2">Inspection Progress</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full">
+                      <div className="h-2 bg-indigo-500 rounded-full" style={{ width: `${quickViewDetails.progress}%` }}></div>
+                    </div>
+                    <span className="font-semibold">{quickViewDetails.progress}%</span>
                   </div>
-                  <span className="font-semibold">{quickViewDetails.progress}%</span>
+                  {quickViewDetails.profit !== null && quickViewDetails.profit !== undefined && (
+                    <p className="mt-2">Estimated Profit: <strong>R {quickViewDetails.profit.toLocaleString()}</strong></p>
+                  )}
                 </div>
-                {quickViewDetails.profit !== null && quickViewDetails.profit !== undefined && (
-                  <p className="mt-2">Estimated Profit: <strong>R {quickViewDetails.profit.toLocaleString()}</strong></p>
-                )}
-              </div>
+                <div className="mt-4">
+                  <h3 className="font-medium mb-2">Advertisement Photos</h3>
+                  {(() => {
+                    const inspection = quickViewDetails.inspection;
+                    const slotPhotos = inspection.advertisementSlots
+                      ? inspection.advertisementSlots.filter(s => s.photo && s.photo.trim() !== '').map(s => s.photo)
+                      : [];
+                    const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : [];
+                    const combined = Array.from(new Set([...slotPhotos, ...legacyPhotos]));
+                    return combined.length === 0 ? (
+                      <p className="text-gray-500 text-sm">No advertisement photos yet.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {combined.map((photo, idx) => (
+                          <img key={idx} src={photo} alt={`Photo ${idx+1}`} className="h-20 w-20 object-cover rounded-lg cursor-pointer border border-gray-200" onClick={() => window.open(photo, '_blank')} />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
             )}
             <div className="flex flex-wrap gap-2 mt-6">
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/inspection/view/${quickViewVehicle.inspectionId}`) }} className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl text-sm">Full View</button>
