@@ -26,6 +26,9 @@ export interface Vehicle extends BaseEntity {
   inspectionId?: string;
   ownerName?: string;
   listingPrice?: number;
+  consignmentSigned?: boolean;
+  hpiPassed?: boolean;
+  ownershipDone?: boolean;
 }
 
 export interface OwnerInfo {

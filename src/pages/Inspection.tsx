@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { generateAutoListing } from '../utils/autoListing'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useVehicleStore } from '../store/useVehicleStore'
+import { useReminderStore } from '../store/useReminderStore'
 import { decodeVIN } from '../services/vinEngine'
 import { compressImage } from '../utils/image'
 import { getModelSuggestions } from '../utils/makeModels'
@@ -24,6 +25,7 @@ import type { DecodedVIN } from '../services/vinTypes'
 export default function InspectionPage() {
   const { activeInspection, loadInspections, newInspection, updateInspection, setActiveInspection } = useInspectionStore()
   const { vehicles, createVehicle, updateVehicle, loadVehicles } = useVehicleStore()
+  const { reminders, loadReminders, createReminder } = useReminderStore()
   const [form, setForm] = useState<Inspection | null>(activeInspection)
   const [decodedVIN, setDecodedVIN] = useState<DecodedVIN | null>(null)
   const [showCamera, setShowCamera] = useState(false)
@@ -49,7 +51,34 @@ export default function InspectionPage() {
     }
     loadLatest()
     loadVehicles()
-  }, [loadInspections, setActiveInspection, loadVehicles])
+    loadReminders()
+  }, [loadInspections, setActiveInspection, loadVehicles, loadReminders])
+
+
+  useEffect(() => {
+    if (!form || !form.vehicleInfo.licenseExpiry) return;
+    const expiry = new Date(form.vehicleInfo.licenseExpiry);
+    const now = new Date();
+    const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    // Only remind if expired or expiring within 60 days
+    if (diffDays > 60) return;
+
+    const existing = reminders.some(r =>
+      r.vehicleId === form.id && r.title.toLowerCase().includes('license expiry')
+    );
+    if (existing) return;
+
+    createReminder({
+      id: `rem_${Date.now()}`,
+      title: `License Expiry: ${form.vehicleInfo.year} ${form.vehicleInfo.make} ${form.vehicleInfo.model}`,
+      vehicleId: form.id,
+      dueDate: form.vehicleInfo.licenseExpiry,
+      completed: false,
+      notes: `License disc expires on ${form.vehicleInfo.licenseExpiry}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }, [form?.vehicleInfo.licenseExpiry, reminders, createReminder, form?.id]);
 
   useEffect(() => {
     setForm(activeInspection)

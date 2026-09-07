@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function Documents() {
   const { documents, loadDocuments, createDocument, deleteDocument } = useDocumentStore()
-  const { vehicles, loadVehicles } = useVehicleStore()
+  const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
   const [vehicleId, setVehicleId] = useState('')
   const [title, setTitle] = useState('')
   const [type, setType] = useState('legal')
@@ -95,6 +95,25 @@ export default function Documents() {
       updatedAt: now,
     }
     await createDocument(doc)
+
+    // Auto-link document to deal stages
+    if (vehicleId) {
+      const vehicle = vehicles.find(v => v.id === vehicleId)
+      if (vehicle) {
+        const updatedVehicle = { ...vehicle, updatedAt: new Date().toISOString() }
+        if (title.toLowerCase().includes('consignment')) {
+          updatedVehicle.consignmentSigned = true
+        }
+        if (title.toLowerCase().includes('hpi') && !title.toLowerCase().includes('failed')) {
+          updatedVehicle.hpiPassed = true
+        }
+        if (title.toLowerCase().includes('change of ownership')) {
+          updatedVehicle.ownershipDone = true
+        }
+        await updateVehicle(updatedVehicle)
+      }
+    }
+
     setTitle('')
     setType('legal')
     setVehicleId('')
