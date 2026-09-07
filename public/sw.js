@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ramscars-os-v2';
+const CACHE_NAME = 'ramscars-os-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -16,7 +16,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-    ))
+    )).then(() => self.clients.claim())
   );
 });
 
@@ -24,7 +24,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
-  // Network-first for navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -38,10 +37,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (hashed by Vite)
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
+      if (cached) {
+        // Stale-while-revalidate for assets
+        fetch(request).then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+        }).catch(() => {});
+        return cached;
+      }
       return fetch(request).then((response) => {
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
