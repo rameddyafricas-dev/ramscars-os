@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import GlobalSearch from '../components/GlobalSearch'
 
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
@@ -60,6 +61,7 @@ export default function SidebarLayout() {
           <span className="text-xs block opacity-75 mt-0.5" style={{ color: 'var(--text-muted)' }}>Inspected, Transparent and Trusted</span>
         </div>
 
+        <GlobalSearch />
         <div className="ml-auto relative" ref={profileRef}>
           <button
             onClick={() => setProfileOpen(!profileOpen)}

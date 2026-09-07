@@ -5,11 +5,13 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
 import type { Inspection, MarketingInfo, Vehicle } from '../types'
 import Toast from '../components/Toast'
+import { useAdDraftsStore, type AdDraft } from '../store/useAdDraftsStore'
 
 export default function Marketing() {
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections, updateInspection } = useInspectionStore()
   const { profile, loadProfile } = useDealershipStore()
+  const { drafts, loadDrafts, removeDraft } = useAdDraftsStore()
   const [searchParams] = useSearchParams()
   const vehicleParam = searchParams.get('vehicle') || ''
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -24,7 +26,8 @@ export default function Marketing() {
     loadVehicles()
     loadInspections()
     loadProfile()
-  }, [loadVehicles, loadInspections, loadProfile])
+    loadDrafts()
+  }, [loadVehicles, loadInspections, loadProfile, loadDrafts])
 
   useEffect(() => {
     if (!vehicleParam || vehicles.length === 0 || inspections.length === 0) return
@@ -254,6 +257,33 @@ export default function Marketing() {
     document.body.removeChild(a)
   }
 
+
+  const shareDraft = async (draft: AdDraft) => {
+    try {
+      if (navigator.share) {
+        const shareData: any = { title: draft.title, text: draft.text };
+        if (draft.photo && navigator.canShare && navigator.canShare({ files: [await (async () => {
+          const [meta, data] = draft.photo!.split(',');
+          const mime = meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+          return new File([Uint8Array.from(atob(data), c => c.charCodeAt(0))], 'ad.jpg', { type: mime });
+        })()] })) {
+          const file = await (async () => {
+            const [meta, data] = draft.photo!.split(',');
+            const mime = meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+            return new File([Uint8Array.from(atob(data), c => c.charCodeAt(0))], 'ad.jpg', { type: mime });
+          })();
+          shareData.files = [file];
+        }
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(draft.text);
+        window.open(`https://wa.me/?text=${encodeURIComponent(draft.text)}`, '_blank');
+      }
+    } catch (err) {
+      console.error('Share draft failed', err);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -343,6 +373,28 @@ export default function Marketing() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Saved Drafts */}
+      {drafts.length > 0 && (
+        <div className="card p-5 mt-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Saved Drafts</h2>
+          <div className="space-y-2">
+            {drafts.map(draft => (
+              <div key={draft.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{draft.title}</p>
+                  <p className="text-xs text-gray-500 truncate">{draft.text.slice(0, 100)}...</p>
+                </div>
+                {draft.photo && <img src={draft.photo} alt="draft" className="h-12 w-12 object-cover rounded ml-3" />}
+                <div className="flex gap-2 ml-3">
+                  <button onClick={() => shareDraft(draft)} className="text-indigo-600 text-sm hover:underline">Share</button>
+                  <button onClick={() => removeDraft(draft.id)} className="text-red-600 text-sm hover:underline">Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

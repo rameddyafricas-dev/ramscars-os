@@ -180,7 +180,7 @@ export default function Reports() {
     const financialHtml = `
       <div class="section">
         <h2>Financial Information</h2>
-        <p><span class="label">Purchase Price:</span> R ${selectedInspection.financial.purchasePrice ?? '—'}</p>
+        <p><span class="label">Owner Payout / Cost Price:</span> R ${selectedInspection.financial.purchasePrice ?? '—'}</p>
         <p><span class="label">Selling Price:</span> R ${selectedInspection.financial.sellingPrice ?? '—'}</p>
         <p><span class="label">Trade Value:</span> R ${selectedInspection.financial.tradeValue ?? '—'}</p>
         <p><span class="label">Estimated Profit:</span> R ${selectedInspection.financial.estimatedProfit ?? '—'}</p>

@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useInspectionStore } from '../store/useInspectionStore'
+import { useDocumentStore } from '../store/useDocumentStore'
 import CollapsibleCard from '../components/CollapsibleCard'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
+import DocumentPreviewModal from '../components/DocumentPreviewModal'
 import type { Inspection, InspectionScore } from '../types'
 
 export default function InspectionView() {
   const { id } = useParams()
   const { inspections, loadInspections } = useInspectionStore()
+  const { documents, loadDocuments } = useDocumentStore()
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [briefHtml, setBriefHtml] = useState<string | null>(null)
+  const [briefTitle, setBriefTitle] = useState('')
 
   useEffect(() => {
     const load = async () => {
       await loadInspections()
+      await loadDocuments()
     }
     load()
-  }, [loadInspections])
+  }, [loadInspections, loadDocuments])
 
   useEffect(() => {
     if (id && inspections.length > 0) {
@@ -33,6 +39,90 @@ export default function InspectionView() {
     const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : []
     return Array.from(new Set([...slotPhotos, ...legacyPhotos]))
   }, [inspection])
+
+
+  const generateDealBrief = () => {
+    if (!inspection) return
+    const vehicleDocs = documents.filter(d => d.vehicleId === inspection.vehicleId)
+    const consignmentSigned = vehicleDocs.some(d => d.title.toLowerCase().includes('consignment'))
+    const hpiPassed = vehicleDocs.some(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'))
+    const ownershipDone = vehicleDocs.some(d => d.title.toLowerCase().includes('change of ownership'))
+    const marketingDone = !!inspection.marketing?.title && inspection.marketing?.channels?.length > 0
+    const profit = inspection.financial.estimatedProfit ?? 0
+    const margin = inspection.financial.expectedMargin
+
+    const faultsSummary = inspection.faults.length > 0
+      ? inspection.faults.map(f => `• ${f.description}`).join('<br/>')
+      : 'None recorded'
+
+    const scoreItems = Object.entries({
+      mechanical: inspection.score.mechanical,
+      interior: inspection.score.interior,
+      exterior: inspection.score.exterior,
+      electrical: inspection.score.electrical,
+      safety: inspection.score.safety,
+      body: inspection.score.body,
+      engine: inspection.score.engine,
+      suspension: inspection.score.suspension,
+    }).map(([k, v]) => `<span><strong>${k}:</strong> ${v !== null && v !== undefined ? v + '%' : '—'}</span>`).join(' | ')
+
+    const html = `
+      <html>
+        <head>
+          <title>Deal Brief</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 2rem; color: #1f2937; }
+            h1 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+            .section { margin-bottom: 1.5rem; }
+            .label { font-weight: bold; color: #4b5563; }
+            table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Deal Brief</h1>
+          <div class="section">
+            <h2>Vehicle</h2>
+            <p><span class="label">Vehicle:</span> ${inspection.vehicleInfo.year} ${inspection.vehicleInfo.make} ${inspection.vehicleInfo.model}</p>
+            <p><span class="label">Stock Number:</span> ${inspection.vehicleInfo.stockNumber || '—'}</p>
+            <p><span class="label">VIN:</span> ${inspection.vehicleInfo.vin || '—'}</p>
+          </div>
+          <div class="section">
+            <h2>Owner Information</h2>
+            <p><span class="label">Name:</span> ${inspection.ownerInfo.name || '—'}</p>
+            <p><span class="label">Contact:</span> ${inspection.ownerInfo.contactNumber || '—'}</p>
+            <p><span class="label">Email:</span> ${inspection.ownerInfo.email || '—'}</p>
+          </div>
+          <div class="section">
+            <h2>Financial Summary</h2>
+            <p><span class="label">Owner Payout / Cost Price:</span> R ${inspection.financial.purchasePrice ?? '—'}</p>
+            <p><span class="label">Selling Price:</span> R ${inspection.financial.sellingPrice ?? '—'}</p>
+            <p><span class="label">Estimated Profit:</span> R ${profit.toLocaleString()}</p>
+            <p><span class="label">Expected Margin:</span> ${margin !== null && margin !== undefined ? margin.toFixed(2) + '%' : '—'}</p>
+          </div>
+          <div class="section">
+            <h2>Deal Stages</h2>
+            <p><span class="label">Consignment Signed:</span> ${consignmentSigned ? '✅ Yes' : '❌ No'}</p>
+            <p><span class="label">HPI Passed:</span> ${hpiPassed ? '✅ Yes' : '❌ No'}</p>
+            <p><span class="label">Marketing Published:</span> ${marketingDone ? '✅ Yes' : '❌ No'}</p>
+            <p><span class="label">Change of Ownership Done:</span> ${ownershipDone ? '✅ Yes' : '❌ No'}</p>
+          </div>
+          <div class="section">
+            <h2>Inspection Score</h2>
+            <p>${scoreItems}</p>
+          </div>
+          <div class="section">
+            <h2>Faults</h2>
+            <p>${faultsSummary}</p>
+          </div>
+        </body>
+      </html>
+    `
+
+    setBriefTitle('Deal Brief')
+    setBriefHtml(html)
+  };
 
   if (!inspection) {
     return (
@@ -71,6 +161,7 @@ export default function InspectionView() {
           <Link to={`/inspection`} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700">
             Edit Inspection
           </Link>
+          <button onClick={generateDealBrief} className="bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700">Deal Brief</button>
         </div>
       </div>
 
@@ -207,7 +298,7 @@ export default function InspectionView() {
       {/* Financial Information */}
       <CollapsibleCard defaultOpen title="Financial Information">
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <p><span className="font-medium">Purchase Price:</span> R {inspection.financial.purchasePrice ?? '—'}</p>
+          <p><span className="font-medium">Owner Payout / Cost Price:</span> R {inspection.financial.purchasePrice ?? '—'}</p>
           <p><span className="font-medium">Selling Price:</span> R {inspection.financial.sellingPrice ?? '—'}</p>
           <p><span className="font-medium">Trade Value:</span> R {inspection.financial.tradeValue ?? '—'}</p>
           <p><span className="font-medium">Estimated Profit:</span> R {inspection.financial.estimatedProfit ?? '—'}</p>
@@ -229,6 +320,7 @@ export default function InspectionView() {
       {selectedPhoto && (
         <FullscreenPhotoModal src={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
       )}
+            {briefHtml && <DocumentPreviewModal type="html" html={briefHtml} title={briefTitle} onClose={() => setBriefHtml(null)} />}
     </div>
   )
 }

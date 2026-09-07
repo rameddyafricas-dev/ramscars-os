@@ -5,6 +5,7 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import { useSaleStore } from '../store/useSaleStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useReminderStore } from '../store/useReminderStore'
+import { useDocumentStore } from '../store/useDocumentStore'
 import { useDealershipStore } from '../store/useDealershipStore'
 import type { Vehicle } from '../types'
 
@@ -18,6 +19,7 @@ export default function Inventory() {
   const { customers, loadCustomers } = useCustomerStore()
   const { reminders, loadReminders } = useReminderStore()
   const { profile, loadProfile } = useDealershipStore()
+  const { documents, loadDocuments } = useDocumentStore()
 
   // UI state
   const [search, setSearch] = useState('')
@@ -36,7 +38,7 @@ export default function Inventory() {
   const [quickViewVehicleId, setQuickViewVehicleId] = useState<string | null>(null)
   const [publishVehicle, setPublishVehicle] = useState<Vehicle | null>(null)
   const [publishText, setPublishText] = useState('')
-  const [publishPhotoIndex, setPublishPhotoIndex] = useState(0)
+  const [publishPhotoIndices, setPublishPhotoIndices] = useState<Set<number>>(new Set([0]))
 
   // Load all required data
   useEffect(() => {
@@ -46,7 +48,8 @@ export default function Inventory() {
     loadCustomers()
     loadReminders()
     loadProfile()
-  }, [loadVehicles, loadInspections, loadSales, loadCustomers, loadReminders, loadProfile])
+    loadDocuments()
+  }, [loadVehicles, loadInspections, loadSales, loadCustomers, loadReminders, loadProfile, loadDocuments])
 
   // Derived data
   const makes = useMemo(() => {
@@ -128,43 +131,69 @@ export default function Inventory() {
     return combined.length > 0 ? combined : (vehicle.photos || []);
   };
 
-  const openPublishModal = (vehicle: Vehicle) => {
-    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
-    const textParts = [
-      inspection?.marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      inspection?.marketing?.description || '',
+
+  const generateInspectionEnhancedText = (vehicle: Vehicle, inspection: any): string => {
+    const marketing = inspection?.marketing;
+    const score = inspection?.score || {};
+    const scores = Object.values(score).filter((v): v is number => typeof v === 'number' && v !== null);
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    const condition = avgScore !== null
+      ? avgScore >= 80 ? 'Excellent condition' : avgScore >= 60 ? 'Good condition' : avgScore >= 40 ? 'Fair condition' : 'Needs attention'
+      : 'Condition not assessed';
+    const faultsSummary = inspection?.faults?.length > 0
+      ? `Faults: ${inspection.faults.length} noted`
+      : 'No faults recorded';
+    const docs = documents.filter(d => d.vehicleId === vehicle.id);
+    const hpiPassed = docs.some(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'));
+    const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'));
+    const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'));
+    const parts = [
+      marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+      marketing?.description || '',
+      `Condition: ${condition}`,
+      avgScore !== null ? `Inspection Score: ${avgScore}%` : '',
+      hpiPassed ? 'HPI: Passed' : 'HPI: Pending',
+      `${faultsSummary}`,
+      roadworthy ? 'Roadworthy certificate available' : 'Roadworthy certificate pending',
+      serviceHistory ? 'Service history available' : 'Service history not available',
       vehicle.listingPrice !== undefined ? `Price: R ${vehicle.listingPrice.toLocaleString()}` : 'Contact for price',
       profile ? `${profile.name} | ${profile.phone} | ${profile.email}` : '',
-      (inspection?.marketing?.hashtags || []).join(' ')
+      (marketing?.hashtags || []).join(' ')
     ];
-    setPublishText(textParts.filter(Boolean).join('\n'));
-    setPublishPhotoIndex(0);
+    return parts.filter(Boolean).join('\n');
+  };
+
+  const openPublishModal = (vehicle: Vehicle) => {
+    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
+    const customText = inspection?.marketing?.customAdText;
+    const text = customText || generateInspectionEnhancedText(vehicle, inspection);
+    setPublishText(text);
+    setPublishPhotoIndices(new Set([0]));
     setPublishVehicle(vehicle);
   };
 
   const handlePublishShare = async () => {
     if (!publishVehicle) return;
     const photos = getPublishPhotos(publishVehicle);
-    const selectedPhoto = photos[publishPhotoIndex];
-
-    let file: File | undefined;
-    if (selectedPhoto && selectedPhoto.startsWith('data:')) {
-      try {
-        const [meta, data] = selectedPhoto.split(',');
-        const mime = meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
-        const blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: mime });
-        file = new File([blob], 'ad.jpg', { type: mime });
-      } catch (e) {
-        console.warn('Failed to create photo file', e);
+    const selectedIndices = Array.from(publishPhotoIndices).filter(i => i < photos.length);
+    const selectedPhotos = selectedIndices.map(i => photos[i]).filter(Boolean) as string[];
+    const files: File[] = [];
+    for (const photo of selectedPhotos) {
+      if (photo && photo.startsWith('data:')) {
+        try {
+          const [meta, data] = photo.split(',');
+          const mime = meta.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+          const blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: mime });
+          files.push(new File([blob], `ad-${files.length + 1}.jpg`, { type: mime }));
+        } catch (e) {
+          console.warn('Failed to create photo file', e);
+        }
       }
     }
-
     try {
       if (navigator.share) {
         const shareData: any = { title: 'Vehicle Ad', text: publishText };
-        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          shareData.files = [file];
-        }
+        if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) shareData.files = files;
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(publishText);
@@ -182,7 +211,15 @@ export default function Inventory() {
     setPublishVehicle(null);
   };
 
-  const toggleSelected = (id: string) => {
+    const togglePublishPhoto = (idx: number) => {
+    setPublishPhotoIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+const toggleSelected = (id: string) => {
     const newSet = new Set(selectedIds)
     if (newSet.has(id)) newSet.delete(id)
     else newSet.add(id)
@@ -502,13 +539,17 @@ export default function Inventory() {
               <h3 className="text-sm font-medium text-gray-700 mb-2">Select Photo</h3>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {getPublishPhotos(publishVehicle).map((photo, idx) => (
-                  <img
-                    key={idx}
-                    src={photo}
-                    alt={`Photo ${idx+1}`}
-                    onClick={() => setPublishPhotoIndex(idx)}
-                    className={`h-20 w-20 object-cover rounded-lg cursor-pointer border-2 ${publishPhotoIndex === idx ? 'border-indigo-600' : 'border-gray-200'}`}
-                  />
+                  <div key={idx} className="relative">
+                    <img
+                      src={photo}
+                      alt={`Photo ${idx+1}`}
+                      onClick={() => togglePublishPhoto(idx)}
+                      className={`h-20 w-20 object-cover rounded-lg cursor-pointer border-2 ${publishPhotoIndices.has(idx) ? 'border-indigo-600' : 'border-gray-200'}`}
+                    />
+                    {publishPhotoIndices.has(idx) && (
+                      <span className="absolute top-1 right-1 bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">✓</span>
+                    )}
+                  </div>
                 ))}
                 {getPublishPhotos(publishVehicle).length === 0 && (
                   <p className="text-gray-500 text-sm">No photos available</p>

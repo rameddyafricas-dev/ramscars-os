@@ -19,7 +19,25 @@ export default function Documents() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [dragActive, setDragActive] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState('Custom')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const documentTemplates = [
+    { label: 'Custom', title: '', type: 'legal' },
+    { label: 'Sales Agreement', title: 'Sales Agreement', type: 'legal' },
+    { label: 'Bill of Sale', title: 'Bill of Sale', type: 'legal' },
+    { label: 'Sales Invoice', title: 'Sales Invoice', type: 'invoice' },
+    { label: 'Change of Ownership', title: 'Change of Ownership', type: 'legal' },
+    { label: 'Consignment Agreement', title: 'Consignment Agreement', type: 'legal' },
+    { label: 'Roadworthy Certificate', title: 'Roadworthy Certificate', type: 'legal' },
+    { label: 'Service History', title: 'Service History', type: 'service' },
+    { label: 'Warranty Document', title: 'Warranty Document', type: 'other' },
+    { label: 'Insurance Document', title: 'Insurance Document', type: 'other' },
+    { label: 'Accident Report', title: 'Accident Report', type: 'other' },
+    { label: 'Purchase Agreement', title: 'Purchase Agreement', type: 'legal' },
+    { label: 'Trade-In Agreement', title: 'Trade-In Agreement', type: 'legal' },
+    { label: 'Finance Agreement', title: 'Finance Agreement', type: 'legal' },
+  ];
 
   useEffect(() => {
     loadDocuments()
@@ -81,6 +99,7 @@ export default function Documents() {
     setType('legal')
     setVehicleId('')
     setFileData('')
+    setSelectedTemplate('Custom')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -105,6 +124,22 @@ export default function Documents() {
         <div className="card p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Document</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <select
+              value={selectedTemplate}
+              onChange={(e) => {
+                const template = documentTemplates.find(t => t.label === e.target.value);
+                if (template) {
+                  setSelectedTemplate(template.label);
+                  setTitle(template.title);
+                  setType(template.type);
+                }
+              }}
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5"
+            >
+              {documentTemplates.map(t => (
+                <option key={t.label} value={t.label}>{t.label}</option>
+              ))}
+            </select>
             <input placeholder="Document title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" required />
             <select value={type} onChange={(e) => setType(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5">
               <option value="legal">Legal</option>

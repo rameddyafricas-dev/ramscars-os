@@ -130,6 +130,7 @@ export interface MarketingInfo {
   seoKeywords: string[];
   hashtags: string[];
   channels: string[];
+  customAdText?: string;
 }
 
 export interface Inspection extends BaseEntity {
