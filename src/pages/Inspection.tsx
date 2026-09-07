@@ -14,47 +14,11 @@ import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
 import ChecklistGroup from '../components/ChecklistGroup'
 import type { Inspection, InspectionScore, FinancialInfo, Vehicle } from '../types'
+import { debounce, initialScore, commonMakes, commonBodyTypes, commonColors } from '../utils/inspectionConstants'
 import { parseDecimalCoordinates, getCoordinatesForMap } from '../utils/locationUtils'
 import { recalcFinancial, calculateInspectionProgress } from '../utils/inspectionHelpers'
 import type { DecodedVIN } from '../services/vinTypes'
 
-function debounce<A extends any[]>(fn: (...args: A) => void, delay = 300) {
-  let timer: ReturnType<typeof setTimeout> | null;
-  return (...args: A) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
-const initialScore: InspectionScore = {
-  mechanical: null,
-  interior: null,
-  exterior: null,
-  electrical: null,
-  safety: null,
-  body: null,
-  engine: null,
-  suspension: null,
-}
-
-const commonMakes = [
-  'Toyota', 'Volkswagen', 'BMW', 'Mercedes-Benz', 'Ford', 'Hyundai', 'Kia',
-  'Nissan', 'Mazda', 'Honda', 'Lexus', 'Audi', 'Land Rover', 'Jaguar',
-  'Chevrolet', 'Renault', 'Peugeot', 'Citroen', 'Fiat', 'Suzuki',
-  'Mitsubishi', 'Volvo', 'Subaru', 'Isuzu', 'Opel', 'Daihatsu', 'Tata',
-  'Mahindra', 'Chery', 'SsangYong', 'Porsche', 'Ferrari', 'Maserati',
-  'Alfa Romeo', 'Jeep', 'Chrysler', 'Dodge', 'GMC', 'Tesla', 'MINI', 'SEAT', 'Skoda', 'Saab'
-]
-
-const commonBodyTypes = [
-  'Sedan', 'Hatchback', 'SUV', 'Pickup', 'Coupe', 'Convertible', 'Wagon',
-  'Van', 'Minivan', 'MPV', 'Crossover', 'Truck'
-]
-
-const commonColors = [
-  'Black', 'White', 'Silver', 'Grey', 'Blue', 'Red', 'Green', 'Yellow',
-  'Orange', 'Brown', 'Beige', 'Gold', 'Purple', 'Burgundy', 'Champagne', 'Pearl White'
-]
 
 
 export default function InspectionPage() {
