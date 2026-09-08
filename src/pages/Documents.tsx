@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useDocumentStore } from '../store/useDocumentStore'
+import { useDealershipStore } from '../store/useDealershipStore'
+import { useInspectionStore } from '../store/useInspectionStore'
+import { useSaleStore } from '../store/useSaleStore'
+import { useCustomerStore } from '../store/useCustomerStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
 import { compressImage } from '../utils/image'
@@ -10,6 +14,10 @@ import ConfirmDialog from '../components/ConfirmDialog'
 export default function Documents() {
   const { documents, loadDocuments, createDocument, deleteDocument } = useDocumentStore()
   const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
+  const { profile, loadProfile } = useDealershipStore()
+  const { inspections, loadInspections } = useInspectionStore()
+  const { sales, loadSales } = useSaleStore()
+  const { customers, loadCustomers } = useCustomerStore()
   const [vehicleId, setVehicleId] = useState('')
   const [title, setTitle] = useState('')
   const [type, setType] = useState('legal')
@@ -20,7 +28,179 @@ export default function Documents() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [dragActive, setDragActive] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('Custom')
+  const [generatedHtml, setGeneratedHtml] = useState<string | null>(null)
+  const [generatedTitle, setGeneratedTitle] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const generateTemplateHtml = (templateLabel: string, vehicleId: string): string => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return '<p>No vehicle selected</p>';
+    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
+    const sale = sales
+      .filter(s => s.vehicleId === vehicleId && s.status !== 'cancelled')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const buyer = sale ? customers.find(c => c.id === sale.buyerId) : null;
+    const dealer = profile;
+    const owner = inspection?.ownerInfo;
+    const vi = inspection?.vehicleInfo;
+    const price = vehicle.listingPrice !== undefined ? vehicle.listingPrice : inspection?.financial.sellingPrice;
+    const ownerPayout = inspection?.financial.purchasePrice;
+    const additionalCosts = inspection?.financial.additionalCosts || [];
+
+    const formatCurrency = (amount?: number | null) => amount !== undefined && amount !== null ? `R ${amount.toLocaleString()}` : '—';
+    const htmlHead = '<html><head><style>body{font-family:Arial,sans-serif;padding:2rem;color:#1f2937;} h1{color:#4f46e5;border-bottom:2px solid #e5e7eb;padding-bottom:0.5rem;} .section{margin-bottom:1.5rem;} .label{font-weight:bold;color:#4b5563;} table{width:100%;border-collapse:collapse;margin-top:0.5rem;} th,td{border:1px solid #d1d5db;padding:8px;text-align:left;} th{background:#f3f4f6;}</style></head><body>';
+
+    let body = '';
+    switch (templateLabel) {
+      case 'Consignment Agreement':
+        body = `
+          <h1>Consignment Agreement</h1>
+          <div class="section"><h2>Parties</h2>
+            <p><span class="label">Dealer:</span> ${dealer?.name || 'RamsCars Dealership'} | ${dealer?.phone || ''} | ${dealer?.email || ''}</p>
+            <p><span class="label">Owner:</span> ${owner?.name || '—'}</p>
+            <p><span class="label">Owner Contact:</span> ${owner?.contactNumber || '—'}</p>
+            <p><span class="label">Owner Address:</span> ${owner?.physicalAddress || '—'}</p>
+          </div>
+          <div class="section"><h2>Vehicle Details</h2>
+            <p><span class="label">Vehicle:</span> ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+            <p><span class="label">VIN:</span> ${vehicle.vin || '—'}</p>
+            <p><span class="label">Stock Number:</span> ${vehicle.stockNumber || '—'}</p>
+            <p><span class="label">Mileage:</span> ${vehicle.mileage.toLocaleString()} km</p>
+          </div>
+          <div class="section"><h2>Agreement</h2>
+            <p>The owner consigns the above vehicle to the dealer for sale. The dealer will inspect, market, and sell the vehicle on behalf of the owner. The owner will receive the agreed net amount upon sale.</p>
+            <p><span class="label">Owner Payout / Cost Price:</span> ${formatCurrency(ownerPayout)}</p>
+            <p><span class="label">Additional Costs:</span> ${additionalCosts.map(c => `${c.label} ${formatCurrency(c.amount)}`).join('; ') || 'None'}</p>
+          </div>
+        `;
+        break;
+
+      case 'Sales Agreement':
+        body = `
+          <h1>Sales Agreement</h1>
+          <div class="section"><h2>Seller</h2><p>${dealer?.name || 'RamsCars Dealership'} | ${dealer?.phone || ''}</p></div>
+          <div class="section"><h2>Buyer</h2><p>${buyer?.name || '—'} | ${buyer?.phone || ''} | ${buyer?.email || ''}</p></div>
+          <div class="section"><h2>Vehicle</h2><p>${vehicle.year} ${vehicle.make} ${vehicle.model} (Stock: ${vehicle.stockNumber || '—'})</p></div>
+          <div class="section"><h2>Sale Price</h2><p>${formatCurrency(price)}</p></div>
+          <div class="section"><h2>Terms</h2><p>Vehicle sold as inspected. No warranties unless stated.</p></div>
+        `;
+        break;
+
+      case 'Bill of Sale':
+        body = `
+          <h1>Bill of Sale</h1>
+          <p>Sold by ${dealer?.name || 'RamsCars Dealership'} to ${buyer?.name || '—'} the following vehicle:</p>
+          <p>${vehicle.year} ${vehicle.make} ${vehicle.model}, VIN: ${vehicle.vin || '—'}, Mileage: ${vehicle.mileage.toLocaleString()} km</p>
+          <p>Sale Price: ${formatCurrency(price)}</p>
+        `;
+        break;
+
+      case 'Sales Invoice':
+        body = `
+          <h1>Sales Invoice</h1>
+          <p><span class="label">Dealer:</span> ${dealer?.name || 'RamsCars Dealership'}</p>
+          <p><span class="label">Buyer:</span> ${buyer?.name || '—'}</p>
+          <table><tr><th>Description</th><th>Amount</th></tr><tr><td>${vehicle.year} ${vehicle.make} ${vehicle.model}</td><td>${formatCurrency(price)}</td></tr></table>
+        `;
+        break;
+
+      case 'Change of Ownership':
+        body = `
+          <h1>Change of Ownership</h1>
+          <p><span class="label">Vehicle:</span> ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p><span class="label">VIN:</span> ${vehicle.vin || '—'}</p>
+          <p><span class="label">Registration:</span> ${vi?.registrationNumber || '—'}</p>
+          <p><span class="label">New Owner:</span> ${buyer?.name || '—'}</p>
+          <p><span class="label">Previous Owner:</span> ${owner?.name || '—'}</p>
+        `;
+        break;
+
+      case 'Roadworthy Certificate':
+        body = `
+          <h1>Roadworthy Certificate</h1>
+          <p>This certifies that the vehicle ${vehicle.year} ${vehicle.make} ${vehicle.model} (Stock: ${vehicle.stockNumber || '—'}) has passed a roadworthy inspection.</p>
+          <p>Issued by ${dealer?.name || 'RamsCars Dealership'}</p>
+        `;
+        break;
+
+      case 'Service History':
+        body = `
+          <h1>Service History</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Service records are maintained by RamsCars Dealership.</p>
+        `;
+        break;
+
+      case 'Warranty Document':
+        body = `
+          <h1>Warranty Document</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Warranty terms as per agreement.</p>
+        `;
+        break;
+
+      case 'Insurance Document':
+        body = `
+          <h1>Insurance Document</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Insurance details as provided by owner/buyer.</p>
+        `;
+        break;
+
+      case 'Accident Report':
+        body = `
+          <h1>Accident Report</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Reported faults: ${inspection?.faults.map(f => f.description).join(', ') || 'None'}</p>
+        `;
+        break;
+
+      case 'Purchase Agreement':
+        body = `
+          <h1>Purchase Agreement</h1>
+          <p>Buyer: ${buyer?.name || '—'}</p>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Price: ${formatCurrency(price)}</p>
+        `;
+        break;
+
+      case 'Trade-In Agreement':
+        body = `
+          <h1>Trade-In Agreement</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Trade-in value: ${formatCurrency(inspection?.financial.tradeValue)}</p>
+        `;
+        break;
+
+      case 'Finance Agreement':
+        body = `
+          <h1>Finance Agreement</h1>
+          <p>Vehicle: ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
+          <p>Financing terms to be provided.</p>
+        `;
+        break;
+
+      default:
+        body = '<p>No template content.</p>';
+    }
+
+    return htmlHead + body + '</body></html>';
+  };
+
+  const handleGenerateTemplate = () => {
+    if (!vehicleId || selectedTemplate === 'Custom') {
+      alert('Select a vehicle and a template');
+      return;
+    }
+    const html = generateTemplateHtml(selectedTemplate, vehicleId);
+    setGeneratedHtml(html);
+    setGeneratedTitle(selectedTemplate);
+    // Also set fileData to data URL for saving
+    setFileData('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    setTitle(selectedTemplate);
+    setType(documentTemplates.find(t => t.label === selectedTemplate)?.type || 'legal');
+  };
+
+
 
   const documentTemplates = [
     { label: 'Custom', title: '', type: 'legal' },
@@ -42,7 +222,11 @@ export default function Documents() {
   useEffect(() => {
     loadDocuments()
     loadVehicles()
-  }, [loadDocuments, loadVehicles])
+    loadProfile()
+    loadInspections()
+    loadSales()
+    loadCustomers()
+  }, [loadDocuments, loadVehicles, loadProfile, loadInspections, loadSales, loadCustomers])
 
   const filteredDocuments = useMemo(() => {
     return documents.filter(doc => {
@@ -186,6 +370,7 @@ export default function Documents() {
               {fileData && <p className="mt-2 text-xs text-green-600">File loaded</p>}
             </div>
 
+            <button type="button" onClick={handleGenerateTemplate} className="w-full bg-purple-600 text-white px-5 py-3 rounded-xl hover:bg-purple-700">Generate Document</button>
             <button type="submit" className="w-full bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Add Document</button>
           </form>
         </div>
@@ -230,7 +415,10 @@ export default function Documents() {
         </div>
       </div>
 
-      {previewDoc && previewDoc.fileUrl && (
+      {generatedHtml && (
+        <DocumentPreviewModal type="html" html={generatedHtml} title={generatedTitle} onClose={() => setGeneratedHtml(null)} />
+      )}
+            {previewDoc && previewDoc.fileUrl && (
         <DocumentPreviewModal
           type={previewDoc.fileUrl.startsWith('data:image') ? 'image' : 'pdf'}
           src={previewDoc.fileUrl}
