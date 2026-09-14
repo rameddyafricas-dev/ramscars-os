@@ -8,6 +8,7 @@ import { useReminderStore } from '../store/useReminderStore'
 import { useDocumentStore } from '../store/useDocumentStore'
 import { useDealershipStore } from '../store/useDealershipStore'
 import type { Vehicle } from '../types'
+import { getDealState, getAdvertisementPhotos } from '../services/dealEngine'
 
 type SortOption = 'newest' | 'oldest' | 'priceAsc' | 'priceDesc' | 'mileageAsc' | 'mileageDesc' | 'make'
 
@@ -115,22 +116,17 @@ export default function Inventory() {
     const profit = inspection?.financial.estimatedProfit
     const margin = inspection?.financial.expectedMargin
     const progress = inspection?.progress || 0
-    return { inspection, sale, buyer, nextReminder, profit, margin, progress }
+    const deal = getDealState(vehicle, inspection, documents, sale)
+    return { inspection, sale, buyer, nextReminder, profit, margin, progress, deal }
   }
 
 
 
   const getPublishPhotos = (vehicle: Vehicle): string[] => {
-    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
-    if (!inspection) return vehicle.photos || [];
-    const slotPhotos = inspection.advertisementSlots
-      ? inspection.advertisementSlots.filter(s => s.photo && s.photo.trim() !== '').map(s => s.photo)
-      : [];
-    const legacyPhotos = inspection.advertisementPhotos ? inspection.advertisementPhotos.filter(p => p) : [];
-    const combined = Array.from(new Set([...slotPhotos, ...legacyPhotos]));
-    return combined.length > 0 ? combined : (vehicle.photos || []);
-  };
-
+    const inspection = inspections.find(i => i.id === vehicle.inspectionId)
+    const photos = getAdvertisementPhotos(inspection)
+    return photos.length > 0 ? photos : (vehicle.photos || [])
+  }
 
   const generateInspectionEnhancedText = (vehicle: Vehicle, inspection: any): string => {
     const marketing = inspection?.marketing;

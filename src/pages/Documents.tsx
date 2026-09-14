@@ -43,34 +43,76 @@ export default function Documents() {
     const owner = inspection?.ownerInfo;
     const vi = inspection?.vehicleInfo;
     const price = vehicle.listingPrice !== undefined ? vehicle.listingPrice : inspection?.financial.sellingPrice;
-    const ownerPayout = inspection?.financial.purchasePrice;
-    const additionalCosts = inspection?.financial.additionalCosts || [];
 
     const formatCurrency = (amount?: number | null) => amount !== undefined && amount !== null ? `R ${amount.toLocaleString()}` : '—';
     const htmlHead = '<html><head><style>body{font-family:Arial,sans-serif;padding:2rem;color:#1f2937;} h1{color:#4f46e5;border-bottom:2px solid #e5e7eb;padding-bottom:0.5rem;} .section{margin-bottom:1.5rem;} .label{font-weight:bold;color:#4b5563;} table{width:100%;border-collapse:collapse;margin-top:0.5rem;} th,td{border:1px solid #d1d5db;padding:8px;text-align:left;} th{background:#f3f4f6;}</style></head><body>';
 
     let body = '';
     switch (templateLabel) {
-      case 'Consignment Agreement':
+            case 'Consignment Agreement':
         body = `
-          <h1>Consignment Agreement</h1>
-          <div class="section"><h2>Parties</h2>
-            <p><span class="label">Dealer:</span> ${dealer?.name || 'RamsCars Dealership'} | ${dealer?.phone || ''} | ${dealer?.email || ''}</p>
-            <p><span class="label">Owner:</span> ${owner?.name || '—'}</p>
-            <p><span class="label">Owner Contact:</span> ${owner?.contactNumber || '—'}</p>
-            <p><span class="label">Owner Address:</span> ${owner?.physicalAddress || '—'}</p>
+          <h1 style="text-align:center;">RAMSCARS DEALERSHIP</h1>
+          <h2 style="text-align:center;">EXCLUSIVE VEHICLE CONSIGNMENT AGREEMENT</h2>
+
+          <p><span class="label">Agreement Date:</span> ${new Date().toISOString().slice(0,10)}</p>
+          <p><span class="label">Consignment Period Window (Check one option):</span><br/>
+          [  ] 30 Days &nbsp; [  ] 60 Days &nbsp; [  ] 90 Days</p>
+          <p><span class="label">Agreement Expiry Date:</span> ___________________</p>
+
+          <hr/>
+
+          <div class="section">
+            <h2>1. PARTIES</h2>
+            <p>This Agreement is entered into by and between:</p>
+            <p><span class="label">The Agent:</span> RAMSCARS DEALERSHIP, represented by Maemo Edwith Rammutla</p>
+            <p>ID Number: 9504215609084 | Contact Number: 064 974 0759</p>
+            <p><span class="label">The Seller (Full Legal Name):</span> ${owner?.name || '____________________________________'}</p>
+            <p><span class="label">ID / Passport Number:</span> ${owner?.idNumber || '____________________________________'}</p>
+            <p><span class="label">Contact Number:</span> ${owner?.contactNumber || '____________________________'}</p>
+            <p><span class="label">Residential Address:</span> ${owner?.physicalAddress || '____________________________________'}</p>
           </div>
-          <div class="section"><h2>Vehicle Details</h2>
-            <p><span class="label">Vehicle:</span> ${vehicle.year} ${vehicle.make} ${vehicle.model}</p>
-            <p><span class="label">VIN:</span> ${vehicle.vin || '—'}</p>
-            <p><span class="label">Stock Number:</span> ${vehicle.stockNumber || '—'}</p>
-            <p><span class="label">Mileage:</span> ${vehicle.mileage.toLocaleString()} km</p>
+
+          <div class="section">
+            <h2>2. VEHICLE DETAILS & OPERATIONAL STATUS</h2>
+            <p>The Seller warrants that they are the lawful owner with full power to sell the following vehicle:</p>
+            <p><span class="label">Make & Model:</span> ${vehicle.make} ${vehicle.model}</p>
+            <p><span class="label">Year:</span> ${vehicle.year}</p>
+            <p><span class="label">Color:</span> ${vehicle.colour || '___________'}</p>
+            <p><span class="label">VIN Number:</span> ${vehicle.vin || '________________________'}</p>
+            <p><span class="label">Engine Number:</span> ${vi?.engineNumber || '______________________'}</p>
+            <p><span class="label">License Plate / Reg Number:</span> ${vi?.registrationNumber || '____________'}</p>
+            <p><span class="label">Current Mileage:</span> ${vehicle.mileage.toLocaleString()} km</p>
+
+            <p><span class="label">Vehicle Operating Status (Check one option):</span><br/>
+            [  ] RUNNING VEHICLE: The vehicle is mechanically functional, operational, and capable of being driven.<br/>
+            [  ] NON-RUNNING VEHICLE: The vehicle is currently non-functional/not running (e.g., mechanical failure, project car, or stationary asset). The Seller confirms all known faults have been fully disclosed to the Agent for inspection tracking.</p>
           </div>
-          <div class="section"><h2>Agreement</h2>
-            <p>The owner consigns the above vehicle to the dealer for sale. The dealer will inspect, market, and sell the vehicle on behalf of the owner. The owner will receive the agreed net amount upon sale.</p>
-            <p><span class="label">Owner Payout / Cost Price:</span> ${formatCurrency(ownerPayout)}</p>
-            <p><span class="label">Additional Costs:</span> ${additionalCosts.map(c => `${c.label} ${formatCurrency(c.amount)}`).join('; ') || 'None'}</p>
+
+          <div class="section">
+            <h2>3. EXCLUSIVE APPOINTMENT & WINDOW (THE LOCK-DOWN CLAUSE)</h2>
+            <p>3.1. The Seller hereby appoints RamsCars Dealership as their sole and exclusive agent to market, advertise, and negotiate the sale of the vehicle.</p>
+            <p>3.2. This exclusive agreement shall remain in full force and effect for the duration of the selected Consignment Window (30 / 60 or 90 days) starting from the date signed above.</p>
+            <p>3.3. No External Sales: During this active window, the Seller agrees not to sell, trade, or market the vehicle independently, nor through any other broker, platform, or external party. The vehicle marketing slot belongs 100% exclusively to RamsCars Dealership.</p>
+            <p>3.4. If the agreed window expires and the Agent has not secured a buyer or completed the sale, this agreement lapses automatically, and the Seller regains the right to sell the vehicle independently.</p>
           </div>
+
+          <div class="section">
+            <h2>4. PRICING AND NET-TO-SELLER FINANCIAL TERMS</h2>
+            <p>4.1. Minimum Net Payout to Seller: The Seller agrees to a guaranteed net payout of R ${inspection?.financial.purchasePrice ?? '__________________'} (the "Seller Target Price") upon successful sale of the vehicle.</p>
+            <p>4.2. Agent Profit / Markup Structure: RamsCars Dealership will market the vehicle at an inclusive retail price determined by the Agent. All proceeds achieved above the Seller's minimum net payout amount shall be retained entirely by RamsCars Dealership as its professional markup/service profit for marketing, inspection management, logistics, and deal facilitation.</p>
+          </div>
+
+          <div class="section">
+            <h2>5. PROTECTION AGAINST CUT-OUTS, WALK-INS, & BREACH OF CONTRACT</h2>
+            <p>5.1. Universal Exclusivity & Catch-All Protection: The Seller acknowledges that RamsCars Dealership holds exclusive agency rights over the vehicle during the agreed term. This protection applies universally, regardless of how a prospective buyer discovers the vehicle.</p>
+            <p>5.2. Prohibition of Direct Sales (Passerby / Walk-In Protection): If any third party, casual passerby, or external individual sees the vehicle parked, displayed, or managed at the location, approaches the premises directly, and attempts to purchase or inquire about the vehicle without going through the Agent, the Seller is strictly prohibited from engaging, negotiating, or transacting with them independently.</p>
+            <p>5.3. Redirection Mandate: The Seller must immediately redirect any such walk-in or external inquiry back to RamsCars Dealership.</p>
+            <p>5.4. Penalty for Cut-Out / Breach: Any direct sale, private transaction, processing of payment, or transfer of ownership executed with any buyer (whether sourced via RamsCars marketing campaigns, digital platforms, or an uninitiated passerby walking onto the property) during the active exclusive window—or within 90 days post-expiry to any party introduced or exposed to the vehicle via the dealership—constitutes an immediate and severe breach of contract.</p>
+            <p>5.5. Upon such breach, the Seller shall remain legally liable to pay RamsCars Dealership the full expected markup/profit amount (calculated as the difference between the intended retail price and the Seller Target Price) immediately upon the conclusion of the transaction as liquidated damages.</p>
+          </div>
+
+          <hr/>
+          <p style="text-align:center;">This document is generated by RamsCars OS and is a legally binding agreement once signed by both parties.</p>
         `;
         break;
 
