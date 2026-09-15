@@ -157,7 +157,7 @@ export default function Inventory() {
     const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'))
     const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'))
 
-    // Checklist categories covered (5 main areas)
+    // Per-category inspection breakdown with pass/total format
     const categoryLabels: Record<string, string> = {
       documentation: 'Legal Documents',
       exterior: 'Exterior',
@@ -165,9 +165,32 @@ export default function Inventory() {
       engine_bay: 'Engine Bay & Drivetrain',
       underbody: 'Underbody & Suspension',
     }
-    const coveredCategories: string[] = Array.from(
-      new Set<string>((inspection?.checklist || []).map((c: any) => String(c.category)))
-    ).filter((c: string) => categoryLabels[c] !== undefined)
+
+    const categorySummaries: { label: string; summary: string; icon: string }[] = []
+    const checklist = inspection?.checklist || []
+    for (const [key, label] of Object.entries(categoryLabels)) {
+      const items = checklist.filter((c: any) => String(c.category) === key)
+      if (items.length === 0) continue
+      const total = items.length
+      const pass = items.filter((c: any) => c.result === 'pass').length
+      const advisory = items.filter((c: any) => c.result === 'advisory').length
+      const fail = items.filter((c: any) => c.result === 'fail').length
+      const unchecked = items.filter((c: any) => !c.result).length
+
+      let icon = '✅'
+      const parts: string[] = []
+      parts.push(`${pass}/${total} pass`)
+      if (fail > 0) parts.push(`${fail}/${total} fail`)
+      if (advisory > 0) parts.push(`${advisory}/${total} advisory`)
+      if (unchecked > 0) parts.push(`${unchecked}/${total} pending`)
+
+      if (fail > 0) icon = '❌'
+      else if (advisory > 0) icon = '⚠️'
+      else if (unchecked === total) icon = '⏳'
+      else if (unchecked > 0) icon = '⏳'
+
+      categorySummaries.push({ label, summary: parts.join(', '), icon })
+    }
 
     const price = vehicle.listingPrice ?? inspection?.financial?.sellingPrice
     const mileage = vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : (inspection?.vehicleInfo?.mileage ? `${Number(inspection.vehicleInfo.mileage).toLocaleString()} km` : null)
@@ -187,20 +210,17 @@ export default function Inventory() {
     if (transmission) specLines.push(`• Transmission: ${transmission}`)
     if (vehicle.stockNumber) specLines.push(`• Stock: ${vehicle.stockNumber}`)
 
-    const inspectionLines: string[] = []
+    const checkLines: string[] = []
     if (avgScore !== null) {
-      inspectionLines.push(`• Overall Score: ${avgScore}%${condition ? ` (${condition})` : ''}`)
+      checkLines.push(`• Overall Score: ${avgScore}%${condition ? ` (${condition})` : ''}`)
     } else if (condition) {
-      inspectionLines.push(`• Condition: ${condition}`)
+      checkLines.push(`• Condition: ${condition}`)
     }
-    if (coveredCategories.length > 0) {
-      inspectionLines.push(`• Areas Inspected: ${coveredCategories.map(c => categoryLabels[c]).join(', ')}`)
-    }
-    if (hpiFailed) inspectionLines.push('• ⚠️ HPI: Flagged — deal on hold')
-    else if (hpiDoc) inspectionLines.push('• ✅ HPI: Cleared')
-    else inspectionLines.push('• HPI: Pending')
-    inspectionLines.push(`• Roadworthy: ${roadworthy ? 'Available ✅' : 'Pending'}`)
-    inspectionLines.push(`• Service History: ${serviceHistory ? 'Available ✅' : 'Not available'}`)
+    if (hpiFailed) checkLines.push('• ⚠️ HPI: Flagged — deal on hold')
+    else if (hpiDoc) checkLines.push('• ✅ HPI: Cleared')
+    else checkLines.push('• HPI: Pending')
+    checkLines.push(`• Roadworthy: ${roadworthy ? 'Available ✅' : 'Pending'}`)
+    checkLines.push(`• Service History: ${serviceHistory ? 'Available ✅' : 'Not available'}`)
 
     const lines: string[] = []
     lines.push(`🚗 ${title}`)
@@ -213,9 +233,14 @@ export default function Inventory() {
     lines.push(...specLines)
     lines.push('')
     lines.push('🔍 Inspection Summary')
-    lines.push(...inspectionLines)
+    lines.push(...checkLines)
 
-    // Faults — full transparency
+    if (categorySummaries.length > 0) {
+      lines.push('')
+      lines.push('🛠️ Multi-Point Inspection Breakdown')
+      categorySummaries.forEach(c => lines.push(`${c.icon} ${c.label}: ${c.summary}`))
+    }
+
     lines.push('')
     lines.push('⚠️ Faults Disclosed')
     if (faults.length === 0) {
@@ -225,7 +250,6 @@ export default function Inventory() {
     }
 
     lines.push('')
-    lines.push('📄 Full multi-point inspection report available on request.')
     lines.push('✅ Inspected, Transparent and Trusted')
 
     lines.push('')
@@ -234,11 +258,26 @@ export default function Inventory() {
     } else {
       lines.push('💰 Price: Contact for price')
     }
-    if (profile) {
-      lines.push('')
-      lines.push('📞 Contact RamsCars Dealership')
-      lines.push(`${profile.name}${profile.phone ? ' · ' + profile.phone : ''}${profile.email ? ' · ' + profile.email : ''}`)
-    }
+
+    // Dealership info + inspection report offer
+    const dealerName = profile?.name || 'RamsCars Dealership'
+    const dealerPhone = profile?.phone || '064 974 0759'
+    const dealerEmail = profile?.email || ''
+    const dealerAddress = profile?.address || ''
+
+    lines.push('')
+    lines.push('📞 Contact Us')
+    lines.push(`🏢 ${dealerName}`)
+    if (dealerPhone) lines.push(`📱 ${dealerPhone}`)
+    if (dealerEmail) lines.push(`✉️ ${dealerEmail}`)
+    if (dealerAddress) lines.push(`📍 ${dealerAddress}`)
+
+    lines.push('')
+    lines.push('📄 Detailed Inspection Report Available')
+    lines.push('Get the full multi-point inspection report including checklist, photos and video on WhatsApp.')
+    lines.push('👀 Viewing arrangements can be made on WhatsApp or Call.')
+    if (dealerPhone) lines.push(`📲 WhatsApp / Call: ${dealerPhone}`)
+
     if (marketing?.hashtags && marketing.hashtags.length > 0) {
       lines.push('')
       lines.push(marketing.hashtags.join(' '))
