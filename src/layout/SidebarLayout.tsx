@@ -9,6 +9,7 @@ const menuItems = [
   { path: '/media', label: 'Media', icon: '🖼️' },
   { path: '/documents', label: 'Documents', icon: '📄' },
   { path: '/payouts', label: 'Owner Payouts', icon: '💸' },
+  { path: '/statements', label: 'Owner Statements', icon: '📋' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 

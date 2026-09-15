@@ -4,6 +4,8 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import { useSaleStore } from '../store/useSaleStore'
 import { useToastStore } from '../store/useToastStore'
 import ConfirmDialog from '../components/ConfirmDialog'
+import DocumentPreviewModal from '../components/DocumentPreviewModal'
+import { useDealershipStore } from '../store/useDealershipStore'
 import type { Vehicle, Inspection, Sale } from '../types'
 
 interface LedgerRow {
@@ -22,6 +24,7 @@ export default function OwnerPayouts() {
   const { inspections, loadInspections } = useInspectionStore()
   const { sales, loadSales } = useSaleStore()
   const { show: showToast } = useToastStore()
+  const { profile, loadProfile } = useDealershipStore()
 
   const [filter, setFilter] = useState<'all' | 'due' | 'paid'>('due')
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
@@ -29,12 +32,15 @@ export default function OwnerPayouts() {
   const [payoutDate, setPayoutDate] = useState('')
   const [payoutRef, setPayoutRef] = useState('')
   const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [receiptHtml, setReceiptHtml] = useState<string | null>(null)
+  const [receiptTitle, setReceiptTitle] = useState('')
 
   useEffect(() => {
     loadVehicles()
     loadInspections()
     loadSales()
-  }, [loadVehicles, loadInspections, loadSales])
+    loadProfile()
+  }, [loadVehicles, loadInspections, loadSales, loadProfile])
 
   const ledger = useMemo<LedgerRow[]>(() => {
     return vehicles.map(vehicle => {
@@ -67,6 +73,84 @@ export default function OwnerPayouts() {
     const totalPendingMarkup = unpaid.reduce((sum, r) => sum + r.markup, 0)
     return { totalOwed, totalMarkup, totalPendingMarkup }
   }, [ledger])
+
+  const generateReceipt = (row: LedgerRow) => {
+    const owner = row.inspection?.ownerInfo
+    const vehicleInfo = row.inspection?.vehicleInfo
+    const paidDate = row.vehicle.ownerPayoutDate || new Date().toISOString().slice(0, 10)
+    const paidAmount = row.vehicle.ownerPayoutAmount ?? row.ownerTarget
+    const reference = row.vehicle.ownerPayoutReference || '—'
+
+    const html = `
+      <html>
+        <head>
+          <title>Owner Payout Receipt</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 2rem; color: #1f2937; }
+            h1 { color: #4f46e5; text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+            h2 { color: #4b5563; font-size: 1rem; margin-top: 1.5rem; }
+            .section { margin-bottom: 1rem; }
+            .label { font-weight: bold; color: #4b5563; }
+            .receipt-box { background: #f3f4f6; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+            .amount { font-size: 1.5rem; font-weight: bold; color: #10b981; text-align: center; }
+            .footer { margin-top: 2rem; text-align: center; font-size: 0.85rem; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 1rem; }
+            .sig { display: flex; justify-content: space-between; margin-top: 3rem; }
+            .sig-line { border-top: 1px solid #4b5563; width: 45%; padding-top: 0.25rem; text-align: center; font-size: 0.85rem; }
+          </style>
+        </head>
+        <body>
+          <h1>${profile?.name || 'RAMSCARS DEALERSHIP'}</h1>
+          <h2 style="text-align:center;color:#4f46e5;">OWNER PAYOUT RECEIPT</h2>
+
+          <div class="receipt-box">
+            <p style="text-align:center;margin:0;font-size:0.9rem;color:#6b7280;">Amount Paid to Owner</p>
+            <p class="amount">R ${paidAmount.toLocaleString()}</p>
+            <p style="text-align:center;margin:0;font-size:0.85rem;color:#6b7280;">Paid on ${paidDate}</p>
+          </div>
+
+          <div class="section">
+            <h2>Owner Details</h2>
+            <p><span class="label">Name:</span> ${owner?.name || '—'}</p>
+            <p><span class="label">ID Number:</span> ${owner?.idNumber || '—'}</p>
+            <p><span class="label">Contact:</span> ${owner?.contactNumber || '—'}</p>
+            <p><span class="label">Address:</span> ${owner?.physicalAddress || '—'}</p>
+          </div>
+
+          <div class="section">
+            <h2>Vehicle Details</h2>
+            <p><span class="label">Vehicle:</span> ${row.vehicle.year} ${row.vehicle.make} ${row.vehicle.model}</p>
+            <p><span class="label">VIN:</span> ${row.vehicle.vin || vehicleInfo?.vin || '—'}</p>
+            <p><span class="label">Stock Number:</span> ${row.vehicle.stockNumber || '—'}</p>
+            <p><span class="label">Sale Price:</span> R ${row.sellingPrice.toLocaleString()}</p>
+            <p><span class="label">Additional Costs:</span> R ${row.additionalCosts.toLocaleString()}</p>
+            <p><span class="label">Agreed Owner Payout:</span> R ${row.ownerTarget.toLocaleString()}</p>
+          </div>
+
+          <div class="section">
+            <h2>Payment Details</h2>
+            <p><span class="label">Reference:</span> ${reference}</p>
+            <p><span class="label">Date:</span> ${paidDate}</p>
+          </div>
+
+          <div class="section">
+            <p>I, the undersigned owner, confirm receipt of the above amount as full and final payment from ${profile?.name || 'RamsCars Dealership'} for the sale of the vehicle described above. This receipt releases the dealership from any further claim regarding this transaction.</p>
+          </div>
+
+          <div class="sig">
+            <div class="sig-line">Owner Signature</div>
+            <div class="sig-line">Dealer Signature</div>
+          </div>
+
+          <div class="footer">
+            ${profile?.name || 'RamsCars Dealership'} ${profile?.phone ? '| ' + profile.phone : ''} ${profile?.email ? '| ' + profile.email : ''}
+          </div>
+        </body>
+      </html>
+    `
+
+    setReceiptTitle(`Owner Payout Receipt — ${row.vehicle.make} ${row.vehicle.model}`)
+    setReceiptHtml(html)
+  }
 
   const openPayoutModal = (row: LedgerRow) => {
     setEditingVehicle(row.vehicle)
@@ -186,12 +270,20 @@ export default function OwnerPayouts() {
                     Record Payout
                   </button>
                 ) : (
-                  <button
-                    onClick={() => handleUnmark(row)}
-                    className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm hover:bg-gray-200"
-                  >
-                    Mark Unpaid
-                  </button>
+                  <>
+                    <button
+                      onClick={() => generateReceipt(row)}
+                      className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm hover:bg-indigo-200"
+                    >
+                      Print Receipt
+                    </button>
+                    <button
+                      onClick={() => handleUnmark(row)}
+                      className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm hover:bg-gray-200"
+                    >
+                      Mark Unpaid
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -256,6 +348,15 @@ export default function OwnerPayouts() {
           message={confirmState.message}
           onConfirm={() => { confirmState.onConfirm(); setConfirmState(null) }}
           onCancel={() => setConfirmState(null)}
+        />
+      )}
+
+      {receiptHtml && (
+        <DocumentPreviewModal
+          type="html"
+          html={receiptHtml}
+          title={receiptTitle}
+          onClose={() => setReceiptHtml(null)}
         />
       )}
     </div>

@@ -19,6 +19,7 @@ const Sales = lazy(() => import('./pages/Sales'))
 const Documents = lazy(() => import('./pages/Documents'))
 const Reminders = lazy(() => import('./pages/Reminders'))
 const OwnerPayouts = lazy(() => import('./pages/OwnerPayouts'))
+const OwnerStatement = lazy(() => import('./pages/OwnerStatement'))
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
               <Route path="/documents" element={<Documents />} />
               <Route path="/reminders" element={<Reminders />} />
               <Route path="/payouts" element={<OwnerPayouts />} />
+              <Route path="/statements" element={<OwnerStatement />} />
             </Route>
           </Routes>
         </Suspense>
