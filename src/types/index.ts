@@ -29,6 +29,10 @@ export interface Vehicle extends BaseEntity {
   consignmentSigned?: boolean;
   hpiPassed?: boolean;
   ownershipDone?: boolean;
+  ownerPayoutPaid?: boolean;
+  ownerPayoutDate?: string;
+  ownerPayoutReference?: string;
+  ownerPayoutAmount?: number;
 }
 
 export interface OwnerInfo {

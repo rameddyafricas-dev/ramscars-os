@@ -8,6 +8,7 @@ const menuItems = [
   { path: '/inventory', label: 'Inventory', icon: '🚗' },
   { path: '/media', label: 'Media', icon: '🖼️' },
   { path: '/documents', label: 'Documents', icon: '📄' },
+  { path: '/payouts', label: 'Owner Payouts', icon: '💸' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 
