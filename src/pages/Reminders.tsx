@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useReminderStore } from '../store/useReminderStore'
+import { useToastStore } from '../store/useToastStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { generateId } from '../utils/id'
 import type { Reminder } from '../types'
@@ -8,6 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function Reminders() {
   const { reminders, loadReminders, createReminder, updateReminder, deleteReminder } = useReminderStore()
+  const { show: showToast } = useToastStore()
   const { vehicles, loadVehicles } = useVehicleStore()
 
   const [searchParams] = useSearchParams()
@@ -20,6 +22,7 @@ export default function Reminders() {
   const [category, setCategory] = useState<Reminder['category']>('general')
   const [priority, setPriority] = useState<Reminder['priority']>('medium')
   const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('pending')
   const [search, setSearch] = useState('')
@@ -109,22 +112,29 @@ export default function Reminders() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !dueDate) return
-    const now = new Date().toISOString()
-    const reminder: Reminder = {
-      id: generateId('rem'),
-      title,
-      vehicleId: vehicleId || undefined,
-      dueDate,
-      dueTime: dueTime || undefined,
-      completed: false,
-      notes,
-      category,
-      priority,
-      createdAt: now,
-      updatedAt: now,
+    setSaving(true)
+    try {
+      const now = new Date().toISOString()
+      const reminder: Reminder = {
+        id: generateId('rem'),
+        title,
+        vehicleId: vehicleId || undefined,
+        dueDate,
+        dueTime: dueTime || undefined,
+        completed: false,
+        notes,
+        category,
+        priority,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await createReminder(reminder)
+      resetForm()
+    } catch {
+      showToast('Failed to save reminder', 'error')
+    } finally {
+      setSaving(false)
     }
-    await createReminder(reminder)
-    resetForm()
   }
 
   const resetForm = () => {
@@ -204,7 +214,7 @@ export default function Reminders() {
               ))}
             </select>
             <textarea placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" rows={2} />
-            <button type="submit" className="w-full bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Add Reminder</button>
+            <button type="submit" disabled={saving} className="w-full bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving...' : 'Add Reminder'}</button>
           </form>
         </div>
 

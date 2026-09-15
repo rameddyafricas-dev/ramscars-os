@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useSaleStore } from '../store/useSaleStore'
+import { useToastStore } from '../store/useToastStore'
 import { generateId } from '../utils/id'
 import type { Sale, SaleStatus, PaymentStatus, Payment } from '../types'
 
@@ -12,6 +13,7 @@ export default function Sales() {
   const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
   const { customers, loadCustomers } = useCustomerStore()
   const { sales, payments, loadSales, loadPayments, createSale, createPayment, updateSale } = useSaleStore()
+  const { show: showToast } = useToastStore()
 
   const [searchParams] = useSearchParams()
   const initialVehicleId = searchParams.get('vehicle') || ''
@@ -28,6 +30,7 @@ export default function Sales() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [editSaleMode, setEditSaleMode] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   // filters and sorting
   const [search, setSearch] = useState('')
@@ -86,26 +89,33 @@ export default function Sales() {
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!vehicleId || !buyerId || !salePrice) return
-    const now = new Date().toISOString()
-    const sale: Sale = {
-      id: generateId('sale'),
-      vehicleId,
-      buyerId,
-      status,
-      salePrice: Number(salePrice),
-      deposit: deposit ? Number(deposit) : undefined,
-      paymentStatus,
-      dateReserved: now,
-      notes,
-      createdAt: now,
-      updatedAt: now,
+    setSaving(true)
+    try {
+      const now = new Date().toISOString()
+      const sale: Sale = {
+        id: generateId('sale'),
+        vehicleId,
+        buyerId,
+        status,
+        salePrice: Number(salePrice),
+        deposit: deposit ? Number(deposit) : undefined,
+        paymentStatus,
+        dateReserved: now,
+        notes,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await createSale(sale)
+      if (selectedVehicle && selectedVehicle.status !== 'sold') {
+        await updateVehicle({ ...selectedVehicle, status: 'reserved', updatedAt: now })
+      }
+      setActiveSaleId(sale.id)
+      resetForm()
+    } catch {
+      showToast('Failed to create sale', 'error')
+    } finally {
+      setSaving(false)
     }
-    await createSale(sale)
-    if (selectedVehicle && selectedVehicle.status !== 'sold') {
-      await updateVehicle({ ...selectedVehicle, status: 'reserved', updatedAt: now })
-    }
-    setActiveSaleId(sale.id)
-    resetForm()
   }
 
   const resetForm = () => {
@@ -231,8 +241,8 @@ export default function Sales() {
             </div>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="w-full border border-gray-300 rounded-xl px-4 py-2.5" rows={2} />
             <div className="flex gap-2">
-              <button type="submit" className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">
-                {editSaleMode ? 'Update Sale' : 'Create Sale'}
+              <button type="submit" disabled={saving} className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                {saving ? 'Saving...' : (editSaleMode ? 'Update Sale' : 'Create Sale')}
               </button>
               {editSaleMode && <button type="button" onClick={() => setEditSaleMode(false)} className="flex-1 bg-gray-200 text-gray-800 px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>}
             </div>
