@@ -10,6 +10,7 @@ const storeNames: (keyof DBStores)[] = [
   'documents',
   'reminders',
   'auditLogs',
+  'communications',
 ]
 
 export interface BackupFile {

@@ -11,6 +11,7 @@ const menuItems = [
   { path: '/payouts', label: 'Owner Payouts', icon: '💸' },
   { path: '/statements', label: 'Owner Statements', icon: '📋' },
   { path: '/hpi-traffic', label: 'HPI & Traffic', icon: '🛡️' },
+  { path: '/communications', label: 'Communications', icon: '💬' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 

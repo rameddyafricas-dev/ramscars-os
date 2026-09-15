@@ -133,35 +133,80 @@ export default function Inventory() {
   }
 
   const generateInspectionEnhancedText = (vehicle: Vehicle, inspection: any): string => {
-    const marketing = inspection?.marketing;
-    const score = inspection?.score || {};
-    const scores = Object.values(score).filter((v): v is number => typeof v === 'number' && v !== null);
-    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    const marketing = inspection?.marketing
+    const score = inspection?.score || {}
+    const scores = Object.values(score).filter((v): v is number => typeof v === 'number' && v !== null)
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
     const condition = avgScore !== null
-      ? avgScore >= 80 ? 'Excellent condition' : avgScore >= 60 ? 'Good condition' : avgScore >= 40 ? 'Fair condition' : 'Needs attention'
-      : 'Condition not assessed';
+      ? avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Needs attention'
+      : null
+
     const faultsSummary = inspection?.faults?.length > 0
-      ? `Faults: ${inspection.faults.length} noted`
-      : 'No faults recorded';
-    const docs = documents.filter(d => d.vehicleId === vehicle.id);
-    const hpiPassed = docs.some(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'));
-    const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'));
-    const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'));
-    const parts = [
-      marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-      marketing?.description || '',
-      `Condition: ${condition}`,
-      avgScore !== null ? `Inspection Score: ${avgScore}%` : '',
-      hpiPassed ? 'HPI: Passed' : 'HPI: Pending',
-      `${faultsSummary}`,
-      roadworthy ? 'Roadworthy certificate available' : 'Roadworthy certificate pending',
-      serviceHistory ? 'Service history available' : 'Service history not available',
-      vehicle.listingPrice !== undefined ? `Price: R ${vehicle.listingPrice.toLocaleString()}` : 'Contact for price',
-      profile ? `${profile.name} | ${profile.phone} | ${profile.email}` : '',
-      (marketing?.hashtags || []).join(' ')
-    ];
-    return parts.filter(Boolean).join('\n');
-  };
+      ? `${inspection.faults.length} fault(s) noted`
+      : 'No faults recorded'
+
+    const docs = documents.filter(d => d.vehicleId === vehicle.id)
+    const hpiDoc = docs.find(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'))
+    const hpiFailed = docs.find(d => d.title.toLowerCase().includes('hpi') && d.title.toLowerCase().includes('failed'))
+    const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'))
+    const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'))
+
+    const price = vehicle.listingPrice ?? inspection?.financial?.sellingPrice
+    const mileage = vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : (inspection?.vehicleInfo?.mileage ? `${Number(inspection.vehicleInfo.mileage).toLocaleString()} km` : null)
+    const colour = vehicle.colour || inspection?.vehicleInfo?.color
+    const body = vehicle.classification || inspection?.vehicleInfo?.bodyType
+    const fuel = vehicle.fuelType || inspection?.vehicleInfo?.fuelType
+    const transmission = vehicle.transmission || inspection?.vehicleInfo?.transmission
+
+    const title = marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`
+
+    const specLines: string[] = []
+    if (vehicle.year) specLines.push(`• Year: ${vehicle.year}`)
+    if (mileage) specLines.push(`• Mileage: ${mileage}`)
+    if (colour) specLines.push(`• Colour: ${colour}`)
+    if (body) specLines.push(`• Body: ${body}`)
+    if (fuel) specLines.push(`• Fuel: ${fuel}`)
+    if (transmission) specLines.push(`• Transmission: ${transmission}`)
+    if (vehicle.stockNumber) specLines.push(`• Stock: ${vehicle.stockNumber}`)
+
+    const conditionLines: string[] = []
+    if (condition) conditionLines.push(`• Condition: ${condition}${avgScore !== null ? ` (${avgScore}%)` : ''}`)
+    conditionLines.push(`• ${faultsSummary}`)
+    if (hpiFailed) conditionLines.push('• ⚠️ HPI: Flagged — deal on hold')
+    else if (hpiDoc) conditionLines.push('• ✅ HPI: Cleared')
+    else conditionLines.push('• HPI: Pending')
+    conditionLines.push(`• Roadworthy: ${roadworthy ? 'Available ✅' : 'Pending'}`)
+    conditionLines.push(`• Service History: ${serviceHistory ? 'Available ✅' : 'Not available'}`)
+
+    const lines: string[] = []
+    lines.push(`🚗 ${title}`)
+    lines.push('')
+    if (marketing?.description) {
+      lines.push(marketing.description)
+      lines.push('')
+    }
+    lines.push('📋 Specifications')
+    lines.push(...specLines)
+    lines.push('')
+    lines.push('🔍 Condition & Checks')
+    lines.push(...conditionLines)
+    lines.push('')
+    if (price !== undefined && price !== null) {
+      lines.push(`💰 Price: R ${price.toLocaleString()}`)
+    } else {
+      lines.push('💰 Price: Contact for price')
+    }
+    if (profile) {
+      lines.push('')
+      lines.push('📞 Contact RamsCars Dealership')
+      lines.push(`${profile.name}${profile.phone ? ' · ' + profile.phone : ''}${profile.email ? ' · ' + profile.email : ''}`)
+    }
+    if (marketing?.hashtags && marketing.hashtags.length > 0) {
+      lines.push('')
+      lines.push(marketing.hashtags.join(' '))
+    }
+    return lines.filter(l => l !== undefined).join('\n')
+  }
 
   const openPublishModal = (vehicle: Vehicle) => {
     const inspection = inspections.find(i => i.id === vehicle.inspectionId);

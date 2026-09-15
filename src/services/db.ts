@@ -1,5 +1,5 @@
 const DB_NAME = 'ramscars-os'
-const DB_VERSION = 9
+const DB_VERSION = 10
 
 export interface DBStores {
   dealershipProfile: any
@@ -11,6 +11,7 @@ export interface DBStores {
   documents: any
   reminders: any
   auditLogs: any
+  communications: any
 }
 
 let db: IDBDatabase | null = null
@@ -62,6 +63,12 @@ function openDB(): Promise<IDBDatabase> {
         const store = database.createObjectStore('auditLogs', { keyPath: 'id' })
         store.createIndex('entityType', 'entityType', { unique: false })
         store.createIndex('entityId', 'entityId', { unique: false })
+        store.createIndex('createdAt', 'createdAt', { unique: false })
+      }
+      if (!database.objectStoreNames.contains('communications')) {
+        const store = database.createObjectStore('communications', { keyPath: 'id' })
+        store.createIndex('vehicleId', 'vehicleId', { unique: false })
+        store.createIndex('customerId', 'customerId', { unique: false })
         store.createIndex('createdAt', 'createdAt', { unique: false })
       }
     }

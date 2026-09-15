@@ -7,6 +7,7 @@ import { useReminderStore } from '../store/useReminderStore'
 import InsightsPanel from '../components/InsightsPanel'
 import AuditLogPanel from '../components/AuditLogPanel'
 import DealPipelinePanel from '../components/DealPipelinePanel'
+import TodayPanel from '../components/TodayPanel'
 
 export default function Dashboard() {
   const { vehicles, loadVehicles } = useVehicleStore()
@@ -112,6 +113,8 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      <TodayPanel />
 
       <DealPipelinePanel />
 

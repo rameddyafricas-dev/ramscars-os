@@ -224,4 +224,18 @@ export interface AuditLog extends BaseEntity {
   metadata?: Record<string, unknown>;
 }
 
+export type CommunicationChannel = 'call' | 'whatsapp' | 'sms' | 'email' | 'in_person' | 'other';
+export type CommunicationDirection = 'inbound' | 'outbound';
+
+export interface Communication extends BaseEntity {
+  vehicleId?: string;
+  customerId?: string;
+  channel: CommunicationChannel;
+  direction: CommunicationDirection;
+  subject: string;
+  notes?: string;
+  followUpDate?: string;
+  followUpDone?: boolean;
+}
+
 export type ID = string;
