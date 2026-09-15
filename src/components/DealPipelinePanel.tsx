@@ -3,23 +3,17 @@ import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDocumentStore } from '../store/useDocumentStore'
 import { useSaleStore } from '../store/useSaleStore'
-import type { Vehicle, Inspection, Sale, Document } from '../types'
+import { getDealState, type DealStageKey } from '../services/dealEngine'
 
-interface Stage {
-  key: string
-  label: string
-  test: (vehicle: Vehicle, inspection?: Inspection, docs?: Document[], sale?: Sale) => boolean
-}
-
-const stages: Stage[] = [
-  { key: 'intake', label: 'Intake', test: () => true },
-  { key: 'consignment', label: 'Consignment', test: (v, _inspection, docs = []) => docs.some(d => d.vehicleId === v.id && d.title.toLowerCase().includes('consignment')) },
-  { key: 'inspection', label: 'Inspection', test: (_v, inspection) => !!inspection },
-  { key: 'hpi', label: 'HPI', test: (v, _inspection, docs = []) => docs.some(d => d.vehicleId === v.id && d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed')) },
-  { key: 'marketing', label: 'Marketing', test: (_v, inspection) => !!inspection?.marketing?.title && inspection.marketing.channels.length > 0 },
-  { key: 'sale', label: 'Sale', test: (_v, _inspection, _docs, sale) => !!sale },
-  { key: 'ownership', label: 'Ownership', test: (v, _inspection, docs = []) => docs.some(d => d.vehicleId === v.id && d.title.toLowerCase().includes('change of ownership')) },
-  { key: 'paid', label: 'Owner Paid', test: (_v, _inspection, _docs, sale) => sale?.paymentStatus === 'paid' },
+const stageOrder: DealStageKey[] = [
+  'intake',
+  'consignment',
+  'inspection',
+  'hpi',
+  'marketing',
+  'sale',
+  'ownership',
+  'paid',
 ]
 
 export default function DealPipelinePanel() {
@@ -36,18 +30,32 @@ export default function DealPipelinePanel() {
   }, [loadVehicles, loadInspections, loadDocuments, loadSales])
 
   const stageCounts = useMemo(() => {
-    return stages.map(stage => ({
-      key: stage.key,
-      label: stage.label,
-      count: vehicles.filter(vehicle => {
-        const inspection = inspections.find(i => i.id === vehicle.inspectionId)
-        const vehicleDocs = documents.filter(d => d.vehicleId === vehicle.id)
-        const sale = sales
-          .filter(s => s.vehicleId === vehicle.id && s.status !== 'cancelled')
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
-        return stage.test(vehicle, inspection, vehicleDocs, sale)
-      }).length,
-    }))
+    const counts: Record<DealStageKey, number> = {
+      intake: 0,
+      consignment: 0,
+      inspection: 0,
+      hpi: 0,
+      marketing: 0,
+      sale: 0,
+      ownership: 0,
+      paid: 0,
+    }
+
+    for (const vehicle of vehicles) {
+      const inspection = inspections.find(i => i.id === vehicle.inspectionId)
+      const sale = sales
+        .filter(s => s.vehicleId === vehicle.id && s.status !== 'cancelled')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      const deal = getDealState(vehicle, inspection, documents, sale)
+      for (const stage of deal.stages) {
+        if (stage.done) counts[stage.key]++
+      }
+    }
+
+    return stageOrder.map(key => {
+      const label = key === 'paid' ? 'Owner Paid' : key.charAt(0).toUpperCase() + key.slice(1)
+      return { key, label, count: counts[key] }
+    })
   }, [vehicles, inspections, documents, sales])
 
   const total = vehicles.length
