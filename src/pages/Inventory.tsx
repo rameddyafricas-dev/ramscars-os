@@ -147,15 +147,27 @@ export default function Inventory() {
       ? avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Needs attention'
       : null
 
-    const faultsSummary = inspection?.faults?.length > 0
-      ? `${inspection.faults.length} fault(s) noted`
-      : 'No faults recorded'
+    const faults: string[] = (inspection?.faults || [])
+      .map((f: any) => (f.description || '').trim())
+      .filter((s: string) => s.length > 0)
 
     const docs = documents.filter(d => d.vehicleId === vehicle.id)
     const hpiDoc = docs.find(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'))
     const hpiFailed = docs.find(d => d.title.toLowerCase().includes('hpi') && d.title.toLowerCase().includes('failed'))
     const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'))
     const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'))
+
+    // Checklist categories covered (5 main areas)
+    const categoryLabels: Record<string, string> = {
+      documentation: 'Legal Documents',
+      exterior: 'Exterior',
+      interior: 'Interior',
+      engine_bay: 'Engine Bay & Drivetrain',
+      underbody: 'Underbody & Suspension',
+    }
+    const coveredCategories: string[] = Array.from(
+      new Set<string>((inspection?.checklist || []).map((c: any) => String(c.category)))
+    ).filter((c: string) => categoryLabels[c] !== undefined)
 
     const price = vehicle.listingPrice ?? inspection?.financial?.sellingPrice
     const mileage = vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : (inspection?.vehicleInfo?.mileage ? `${Number(inspection.vehicleInfo.mileage).toLocaleString()} km` : null)
@@ -175,14 +187,20 @@ export default function Inventory() {
     if (transmission) specLines.push(`• Transmission: ${transmission}`)
     if (vehicle.stockNumber) specLines.push(`• Stock: ${vehicle.stockNumber}`)
 
-    const conditionLines: string[] = []
-    if (condition) conditionLines.push(`• Condition: ${condition}${avgScore !== null ? ` (${avgScore}%)` : ''}`)
-    conditionLines.push(`• ${faultsSummary}`)
-    if (hpiFailed) conditionLines.push('• ⚠️ HPI: Flagged — deal on hold')
-    else if (hpiDoc) conditionLines.push('• ✅ HPI: Cleared')
-    else conditionLines.push('• HPI: Pending')
-    conditionLines.push(`• Roadworthy: ${roadworthy ? 'Available ✅' : 'Pending'}`)
-    conditionLines.push(`• Service History: ${serviceHistory ? 'Available ✅' : 'Not available'}`)
+    const inspectionLines: string[] = []
+    if (avgScore !== null) {
+      inspectionLines.push(`• Overall Score: ${avgScore}%${condition ? ` (${condition})` : ''}`)
+    } else if (condition) {
+      inspectionLines.push(`• Condition: ${condition}`)
+    }
+    if (coveredCategories.length > 0) {
+      inspectionLines.push(`• Areas Inspected: ${coveredCategories.map(c => categoryLabels[c]).join(', ')}`)
+    }
+    if (hpiFailed) inspectionLines.push('• ⚠️ HPI: Flagged — deal on hold')
+    else if (hpiDoc) inspectionLines.push('• ✅ HPI: Cleared')
+    else inspectionLines.push('• HPI: Pending')
+    inspectionLines.push(`• Roadworthy: ${roadworthy ? 'Available ✅' : 'Pending'}`)
+    inspectionLines.push(`• Service History: ${serviceHistory ? 'Available ✅' : 'Not available'}`)
 
     const lines: string[] = []
     lines.push(`🚗 ${title}`)
@@ -194,8 +212,22 @@ export default function Inventory() {
     lines.push('📋 Specifications')
     lines.push(...specLines)
     lines.push('')
-    lines.push('🔍 Condition & Checks')
-    lines.push(...conditionLines)
+    lines.push('🔍 Inspection Summary')
+    lines.push(...inspectionLines)
+
+    // Faults — full transparency
+    lines.push('')
+    lines.push('⚠️ Faults Disclosed')
+    if (faults.length === 0) {
+      lines.push('• No faults recorded during inspection.')
+    } else {
+      faults.forEach(f => lines.push(`• ${f}`))
+    }
+
+    lines.push('')
+    lines.push('📄 Full multi-point inspection report available on request.')
+    lines.push('✅ Inspected, Transparent and Trusted')
+
     lines.push('')
     if (price !== undefined && price !== null) {
       lines.push(`💰 Price: R ${price.toLocaleString()}`)
@@ -234,7 +266,6 @@ export default function Inventory() {
       sms: `sms:?body=${encoded}`,
     }
     if (channel === 'facebook') {
-      // Facebook ignores prefilled text; copy to clipboard and open share
       await copyTextToClipboard(text)
       window.open('https://www.facebook.com/', '_blank')
       return
