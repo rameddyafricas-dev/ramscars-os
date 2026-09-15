@@ -3,11 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useDealershipStore } from '../store/useDealershipStore'
+import { useToastStore } from '../store/useToastStore'
 import type { Inspection, MarketingInfo, Vehicle } from '../types'
-import Toast from '../components/Toast'
 import { useAdDraftsStore, type AdDraft } from '../store/useAdDraftsStore'
 
 export default function Marketing() {
+  const { show: showToast } = useToastStore()
   const { vehicles, loadVehicles } = useVehicleStore()
   const { inspections, loadInspections, updateInspection } = useInspectionStore()
   const { profile, loadProfile } = useDealershipStore()
@@ -20,7 +21,6 @@ export default function Marketing() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [generatedAdImage, setGeneratedAdImage] = useState<string | null>(null)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadVehicles()
@@ -112,7 +112,7 @@ export default function Marketing() {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
     } catch (err) {
-      setToastMessage('Failed to copy listing text.')
+      showToast('Failed to copy listing text.')
     }
   }
 
@@ -241,7 +241,7 @@ export default function Marketing() {
       const dataUrl = await generateAdImage(vehicle, inspection);
       setGeneratedAdImage(dataUrl);
     } catch (err) {
-      setToastMessage('Failed to generate ad image.');
+      showToast('Failed to generate ad image.');
     } finally {
       setGeneratingId(null);
     }
@@ -416,8 +416,6 @@ export default function Marketing() {
           </div>
         </div>
       )}
-
-      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </div>
   )
 }

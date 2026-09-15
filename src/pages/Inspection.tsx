@@ -3,13 +3,13 @@ import { generateAutoListing } from '../utils/autoListing'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useVehicleStore } from '../store/useVehicleStore'
 import { useReminderStore } from '../store/useReminderStore'
+import { useToastStore } from '../store/useToastStore'
 import { decodeVIN } from '../services/vinEngine'
 import { compressImage } from '../utils/image'
 import { getModelSuggestions } from '../utils/makeModels'
 import CameraModal from '../components/CameraModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import PromptDialog from '../components/PromptDialog'
-import Toast from '../components/Toast'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import VideoModal from '../components/VideoModal'
 import CollapsibleCard from '../components/CollapsibleCard'
@@ -23,6 +23,7 @@ import type { DecodedVIN } from '../services/vinTypes'
 
 
 export default function InspectionPage() {
+  const { show: showToast } = useToastStore()
   const { activeInspection, loadInspections, newInspection, updateInspection, setActiveInspection } = useInspectionStore()
   const { vehicles, createVehicle, updateVehicle, loadVehicles } = useVehicleStore()
   const { reminders, loadReminders, createReminder } = useReminderStore()
@@ -37,7 +38,6 @@ export default function InspectionPage() {
   const [loadingLocation, setLoadingLocation] = useState(false)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
@@ -151,7 +151,7 @@ export default function InspectionPage() {
       return;
     }
     if (isCurrentInspectionEmpty()) {
-      setToastMessage('Current inspection is empty. Please add some data before starting a new inspection.');
+      showToast('Current inspection is empty. Please add some data before starting a new inspection.');
       return;
     }
     await saveCurrentInspectionToInventory();
@@ -222,7 +222,7 @@ export default function InspectionPage() {
       window.open(`https://www.google.com/maps?q=${coords}`, '_blank');
       setTimeout(() => setLoadingCoordinates(false), 800);
     } else {
-      setToastMessage('Enter valid coordinates');
+      showToast('Enter valid coordinates');
     }
   };
 
@@ -236,10 +236,10 @@ export default function InspectionPage() {
         setTimeout(() => setLoadingLocation(false), 800);
       }, (err) => {
         console.error('Geolocation error:', err);
-        setToastMessage('Unable to get current location. Please allow location access.');
+        showToast('Unable to get current location. Please allow location access.');
       });
     } else {
-      setToastMessage('Geolocation not supported.');
+      showToast('Geolocation not supported.');
     }
   };
 
@@ -827,8 +827,6 @@ export default function InspectionPage() {
           onCancel={() => setPromptState(null)}
         />
       )}
-
-      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </div>
   )
 }

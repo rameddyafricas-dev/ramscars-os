@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import SidebarLayout from './layout/SidebarLayout'
 import ErrorBoundary from './components/ErrorBoundary'
+import ToastContainer from './components/ToastContainer'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Inspection = lazy(() => import('./pages/Inspection'))
@@ -21,6 +22,7 @@ const Reminders = lazy(() => import('./pages/Reminders'))
 function App() {
   return (
     <ErrorBoundary>
+      <ToastContainer />
       <BrowserRouter>
         <Suspense fallback={<div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>}>
           <Routes>

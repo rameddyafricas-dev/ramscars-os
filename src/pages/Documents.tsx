@@ -5,6 +5,7 @@ import { useInspectionStore } from '../store/useInspectionStore'
 import { useSaleStore } from '../store/useSaleStore'
 import { useCustomerStore } from '../store/useCustomerStore'
 import { useVehicleStore } from '../store/useVehicleStore'
+import { useToastStore } from '../store/useToastStore'
 import { generateId } from '../utils/id'
 import { compressImage } from '../utils/image'
 import type { Document } from '../types'
@@ -12,6 +13,7 @@ import DocumentPreviewModal from '../components/DocumentPreviewModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function Documents() {
+  const { show: showToast } = useToastStore()
   const { documents, loadDocuments, createDocument, deleteDocument } = useDocumentStore()
   const { vehicles, loadVehicles, updateVehicle } = useVehicleStore()
   const { profile, loadProfile } = useDealershipStore()
@@ -230,7 +232,7 @@ export default function Documents() {
 
   const handleGenerateTemplate = () => {
     if (!vehicleId || selectedTemplate === 'Custom') {
-      alert('Select a vehicle and a template');
+      showToast('Select a vehicle and a template');
       return;
     }
     const html = generateTemplateHtml(selectedTemplate, vehicleId);
