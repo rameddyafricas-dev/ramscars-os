@@ -29,11 +29,20 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   createDocument: async (document) => {
     set({ isLoading: true, error: null })
     try {
+      const duplicate = useDocumentStore.getState().documents.some(d =>
+        d.vehicleId === document.vehicleId &&
+        d.title.trim().toLowerCase() === document.title.trim().toLowerCase() &&
+        d.type === document.type
+      )
+      if (duplicate) {
+        throw new Error('This document already exists for the selected vehicle')
+      }
       await addRecord('documents', document)
       await logAudit('Document', document.id, 'created', 'Document created')
       set((state) => ({ documents: [...state.documents, document], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
+      throw error
     }
   },
   updateDocument: async (document) => {

@@ -111,8 +111,8 @@ export default function Sales() {
       }
       setActiveSaleId(sale.id)
       resetForm()
-    } catch {
-      showToast('Failed to create sale', 'error')
+    } catch (err) {
+      showToast((err as Error).message || 'Failed to create sale', 'error')
     } finally {
       setSaving(false)
     }

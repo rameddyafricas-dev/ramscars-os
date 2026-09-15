@@ -41,11 +41,20 @@ export const useSaleStore = create<SaleState>((set) => ({
   createSale: async (sale) => {
     set({ isLoading: true, error: null })
     try {
+      const duplicate = useSaleStore.getState().sales.some(s =>
+        s.vehicleId === sale.vehicleId &&
+        s.status !== 'cancelled' &&
+        s.status !== 'completed'
+      )
+      if (duplicate) {
+        throw new Error('An active sale already exists for this vehicle')
+      }
       await addRecord('sales', sale)
       await logAudit('Sale', sale.id, 'created', 'Sale created')
       set((state) => ({ sales: [...state.sales, sale], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
+      throw error
     }
   },
   updateSale: async (sale) => {

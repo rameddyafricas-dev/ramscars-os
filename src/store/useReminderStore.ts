@@ -29,11 +29,20 @@ export const useReminderStore = create<ReminderState>((set) => ({
   createReminder: async (reminder) => {
     set({ isLoading: true, error: null })
     try {
+      const duplicate = useReminderStore.getState().reminders.some(r =>
+        !r.completed &&
+        r.vehicleId === reminder.vehicleId &&
+        r.title.trim().toLowerCase() === reminder.title.trim().toLowerCase()
+      )
+      if (duplicate) {
+        throw new Error('A similar reminder already exists for this vehicle')
+      }
       await addRecord('reminders', reminder)
       await logAudit('Reminder', reminder.id, 'created', 'Reminder created')
       set((state) => ({ reminders: [...state.reminders, reminder], isLoading: false }))
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
+      throw error
     }
   },
   updateReminder: async (reminder) => {

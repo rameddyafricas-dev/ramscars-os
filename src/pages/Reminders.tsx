@@ -130,8 +130,8 @@ export default function Reminders() {
       }
       await createReminder(reminder)
       resetForm()
-    } catch {
-      showToast('Failed to save reminder', 'error')
+    } catch (err) {
+      showToast((err as Error).message || 'Failed to save reminder', 'error')
     } finally {
       setSaving(false)
     }

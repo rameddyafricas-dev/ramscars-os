@@ -352,7 +352,7 @@ export default function Documents() {
     setSelectedTemplate('Custom')
     if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err) {
-      showToast('Failed to save document', 'error')
+      showToast((err as Error).message || 'Failed to save document', 'error')
     } finally {
       setSaving(false)
     }
