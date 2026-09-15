@@ -128,8 +128,14 @@ export default function Inventory() {
 
   const getPublishPhotos = (vehicle: Vehicle): string[] => {
     const inspection = inspections.find(i => i.id === vehicle.inspectionId)
+    const validSrc = (s: unknown): s is string => {
+      if (typeof s !== 'string') return false
+      const v = s.trim()
+      return v !== '' && (v.startsWith('data:image/') || v.startsWith('blob:') || v.startsWith('http://') || v.startsWith('https://'))
+    }
     const photos = getAdvertisementPhotos(inspection)
-    return photos.length > 0 ? photos : (vehicle.photos || [])
+    if (photos.length > 0) return photos
+    return (vehicle.photos || []).filter(validSrc)
   }
 
   const generateInspectionEnhancedText = (vehicle: Vehicle, inspection: any): string => {

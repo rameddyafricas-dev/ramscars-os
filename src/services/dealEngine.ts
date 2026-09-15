@@ -36,15 +36,23 @@ const isDocMatch = (docs: Document[], keyword: string, exclude?: string): boolea
     return t.includes(keyword.toLowerCase()) && (!exclude || !t.includes(exclude.toLowerCase()))
   })
 
+const isValidPhotoSrc = (src: unknown): src is string => {
+  if (typeof src !== 'string') return false
+  const s = src.trim()
+  if (s === '') return false
+  if (s.startsWith('data:image/')) return true
+  if (s.startsWith('blob:')) return true
+  if (s.startsWith('http://') || s.startsWith('https://')) return true
+  return false
+}
+
 export function getAdvertisementPhotos(inspection?: Inspection): string[] {
   if (!inspection) return []
   const slotPhotos = inspection.advertisementSlots
-    ? inspection.advertisementSlots
-        .filter(s => s.photo && s.photo.trim() !== '')
-        .map(s => s.photo)
+    ? inspection.advertisementSlots.map(s => s.photo).filter(isValidPhotoSrc)
     : []
   const legacyPhotos = inspection.advertisementPhotos
-    ? inspection.advertisementPhotos.filter(p => p)
+    ? inspection.advertisementPhotos.filter(isValidPhotoSrc)
     : []
   return Array.from(new Set([...slotPhotos, ...legacyPhotos]))
 }
