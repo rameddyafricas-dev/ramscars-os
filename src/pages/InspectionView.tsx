@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useInspectionStore } from '../store/useInspectionStore'
+import { useVehicleStore } from '../store/useVehicleStore'
+import { useSaleStore } from '../store/useSaleStore'
 import { useDocumentStore } from '../store/useDocumentStore'
 import CollapsibleCard from '../components/CollapsibleCard'
 import FullscreenPhotoModal from '../components/FullscreenPhotoModal'
 import DocumentPreviewModal from '../components/DocumentPreviewModal'
 import type { Inspection, InspectionScore } from '../types'
+import { getDealState } from '../services/dealEngine'
 
 export default function InspectionView() {
   const { id } = useParams()
   const { inspections, loadInspections } = useInspectionStore()
   const { documents, loadDocuments } = useDocumentStore()
+  const { vehicles, loadVehicles } = useVehicleStore()
+  const { sales, loadSales } = useSaleStore()
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [briefHtml, setBriefHtml] = useState<string | null>(null)
@@ -20,9 +25,11 @@ export default function InspectionView() {
     const load = async () => {
       await loadInspections()
       await loadDocuments()
+      await loadVehicles()
+      await loadSales()
     }
     load()
-  }, [loadInspections, loadDocuments])
+  }, [loadInspections, loadDocuments, loadVehicles, loadSales])
 
   useEffect(() => {
     if (id && inspections.length > 0) {
@@ -43,11 +50,18 @@ export default function InspectionView() {
 
   const generateDealBrief = () => {
     if (!inspection) return
-    const vehicleDocs = documents.filter(d => d.vehicleId === inspection.vehicleId)
-    const consignmentSigned = vehicleDocs.some(d => d.title.toLowerCase().includes('consignment'))
-    const hpiPassed = vehicleDocs.some(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'))
-    const ownershipDone = vehicleDocs.some(d => d.title.toLowerCase().includes('change of ownership'))
-    const marketingDone = !!inspection.marketing?.title && inspection.marketing?.channels?.length > 0
+
+    const vehicle = vehicles.find(v => v.id === inspection.vehicleId)
+    const sale = vehicle
+      ? sales
+          .filter(s => s.vehicleId === vehicle.id && s.status !== 'cancelled')
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      : undefined
+
+    const deal = vehicle
+      ? getDealState(vehicle, inspection, documents, sale)
+      : null
+
     const profit = inspection.financial.estimatedProfit ?? 0
     const margin = inspection.financial.expectedMargin
 
@@ -66,6 +80,14 @@ export default function InspectionView() {
       suspension: inspection.score.suspension,
     }).map(([k, v]) => `<span><strong>${k}:</strong> ${v !== null && v !== undefined ? v + '%' : '—'}</span>`).join(' | ')
 
+    const stageItems = deal
+      ? deal.stages.map(s => `<span><strong>${s.label}:</strong> ${s.done ? '✅ Yes' : '❌ No'}</span>`).join('<br/>')
+      : '<p>Deal state unavailable</p>'
+
+    const blockersItems = deal && deal.blockers.length > 0
+      ? deal.blockers.map(b => `<li>${b}</li>`).join('')
+      : '<li>None</li>'
+
     const html = `
       <html>
         <head>
@@ -78,6 +100,7 @@ export default function InspectionView() {
             table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
             th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
             th { background: #f3f4f6; }
+            .next { background: #eef2ff; padding: 8px 12px; border-radius: 8px; font-weight: bold; color: #4f46e5; }
           </style>
         </head>
         <body>
@@ -102,11 +125,16 @@ export default function InspectionView() {
             <p><span class="label">Expected Margin:</span> ${margin !== null && margin !== undefined ? margin.toFixed(2) + '%' : '—'}</p>
           </div>
           <div class="section">
-            <h2>Deal Stages</h2>
-            <p><span class="label">Consignment Signed:</span> ${consignmentSigned ? '✅ Yes' : '❌ No'}</p>
-            <p><span class="label">HPI Passed:</span> ${hpiPassed ? '✅ Yes' : '❌ No'}</p>
-            <p><span class="label">Marketing Published:</span> ${marketingDone ? '✅ Yes' : '❌ No'}</p>
-            <p><span class="label">Change of Ownership Done:</span> ${ownershipDone ? '✅ Yes' : '❌ No'}</p>
+            <h2>Deal Progress: ${deal?.progress ?? 0}%</h2>
+            <p>${stageItems}</p>
+          </div>
+          <div class="section">
+            <h2>Next Action</h2>
+            <p class="next">${deal?.nextAction || '—'}</p>
+          </div>
+          <div class="section">
+            <h2>Blockers</h2>
+            <ul>${blockersItems}</ul>
           </div>
           <div class="section">
             <h2>Inspection Score</h2>
