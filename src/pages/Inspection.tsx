@@ -177,11 +177,13 @@ export default function InspectionPage() {
 
   
   const handleFinancialChange = (field: keyof FinancialInfo, value: string) => {
+    const num = value === '' ? null : Number(value);
+    const safe = num !== null && (isNaN(num) || num < 0) ? null : num;
     setForm((prev) => prev ? {
       ...prev,
       financial: recalcFinancial({
         ...prev.financial,
-        [field]: value === '' ? null : Number(value),
+        [field]: safe,
       })
     } : prev);
   };
@@ -791,13 +793,13 @@ export default function InspectionPage() {
 
       <CollapsibleCard title="Financial Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input type="number" placeholder="Owner Payout / Cost Price" value={form.financial.purchasePrice ?? ''} onChange={(e) => handleFinancialChange('purchasePrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
-          <input type="number" placeholder="Selling Price" value={form.financial.sellingPrice ?? ''} onChange={(e) => handleFinancialChange('sellingPrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
+          <input type="number" min="0" placeholder="Owner Payout / Cost Price" value={form.financial.purchasePrice ?? ''} onChange={(e) => handleFinancialChange('purchasePrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
+          <input type="number" min="0" placeholder="Selling Price" value={form.financial.sellingPrice ?? ''} onChange={(e) => handleFinancialChange('sellingPrice', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5" />
 
 
           <div className="border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50">Estimated Profit: <strong>{form.financial.estimatedProfit ?? '—'}</strong></div>
           <div className="border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50">Expected Margin: <strong>{form.financial.expectedMargin ? `${form.financial.expectedMargin.toFixed(2)}%` : '—'}</strong></div>
-          <input type="number" placeholder="Trade Value" value={form.financial.tradeValue ?? ''} onChange={(e) => handleFinancialChange('tradeValue', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 col-span-full" />
+          <input type="number" min="0" placeholder="Trade Value" value={form.financial.tradeValue ?? ''} onChange={(e) => handleFinancialChange('tradeValue', e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2.5 col-span-full" />
           <div className="col-span-full space-y-2">
             <p className="font-medium text-gray-700">Additional Costs</p>
             {form.financial.additionalCosts?.map((cost, idx) => (

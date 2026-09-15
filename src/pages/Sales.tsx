@@ -211,11 +211,11 @@ export default function Sales() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price</label>
-                <input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" required />
+                <input type="number" min="0" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Deposit</label>
-                <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" />
+                <input type="number" min="0" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -317,7 +317,7 @@ export default function Sales() {
               </div>
 
               <form onSubmit={handleAddPayment} className="flex gap-2">
-                <input type="number" placeholder="Payment amount" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5" required />
+                <input type="number" min="0" placeholder="Payment amount" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5" required />
                 <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2.5">
                   <option value="cash">Cash</option>
                   <option value="card">Card</option>

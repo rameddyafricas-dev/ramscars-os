@@ -418,16 +418,16 @@ const toggleSelected = (id: string) => {
         {showAdvanced && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
             <div className="flex gap-2">
-              <input type="number" placeholder="Min price" value={minPrice} onChange={e => setMinPrice(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
-              <input type="number" placeholder="Max price" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="0" placeholder="Min price" value={minPrice} onChange={e => setMinPrice(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="0" placeholder="Max price" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
             </div>
             <div className="flex gap-2">
-              <input type="number" placeholder="Min year" value={minYear} onChange={e => setMinYear(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
-              <input type="number" placeholder="Max year" value={maxYear} onChange={e => setMaxYear(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="1900" max="2100" placeholder="Min year" value={minYear} onChange={e => setMinYear(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="1900" max="2100" placeholder="Max year" value={maxYear} onChange={e => setMaxYear(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
             </div>
             <div className="flex gap-2">
-              <input type="number" placeholder="Min mileage" value={minMileage} onChange={e => setMinMileage(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
-              <input type="number" placeholder="Max mileage" value={maxMileage} onChange={e => setMaxMileage(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="0" placeholder="Min mileage" value={minMileage} onChange={e => setMinMileage(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
+              <input type="number" min="0" placeholder="Max mileage" value={maxMileage} onChange={e => setMaxMileage(e.target.value)} className="border border-gray-300 rounded-xl px-3 py-2 w-full" />
             </div>
           </div>
         )}
