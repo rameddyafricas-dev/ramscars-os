@@ -20,6 +20,7 @@ const Documents = lazy(() => import('./pages/Documents'))
 const Reminders = lazy(() => import('./pages/Reminders'))
 const OwnerPayouts = lazy(() => import('./pages/OwnerPayouts'))
 const OwnerStatement = lazy(() => import('./pages/OwnerStatement'))
+const HpiTraffic = lazy(() => import('./pages/HpiTraffic'))
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
               <Route path="/reminders" element={<Reminders />} />
               <Route path="/payouts" element={<OwnerPayouts />} />
               <Route path="/statements" element={<OwnerStatement />} />
+              <Route path="/hpi-traffic" element={<HpiTraffic />} />
             </Route>
           </Routes>
         </Suspense>

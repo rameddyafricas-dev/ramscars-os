@@ -33,6 +33,16 @@ export interface Vehicle extends BaseEntity {
   ownerPayoutDate?: string;
   ownerPayoutReference?: string;
   ownerPayoutAmount?: number;
+  hpiStatus?: 'not_requested' | 'requested' | 'cleared' | 'flagged';
+  hpiRequestedDate?: string;
+  hpiClearedDate?: string;
+  hpiReference?: string;
+  hpiNotes?: string;
+  trafficStatus?: 'not_started' | 'docs_submitted' | 'processing' | 'transferred';
+  trafficSubmittedDate?: string;
+  trafficTransferredDate?: string;
+  trafficReference?: string;
+  trafficNotes?: string;
 }
 
 export interface OwnerInfo {
