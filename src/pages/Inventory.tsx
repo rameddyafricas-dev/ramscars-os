@@ -214,6 +214,35 @@ export default function Inventory() {
     return lines.filter(l => l !== undefined).join('\n')
   }
 
+  const copyTextToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Ad text copied to clipboard', 'success')
+    } catch {
+      showToast('Failed to copy text', 'error')
+    }
+  }
+
+  const openPlatformShare = async (channel: string, text: string) => {
+    const encoded = encodeURIComponent(text)
+    const urls: Record<string, string> = {
+      whatsapp: `https://wa.me/?text=${encoded}`,
+      telegram: `https://t.me/share/url?url=${encoded}&text=${encoded}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encoded}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`,
+      email: `mailto:?body=${encoded}`,
+      sms: `sms:?body=${encoded}`,
+    }
+    if (channel === 'facebook') {
+      // Facebook ignores prefilled text; copy to clipboard and open share
+      await copyTextToClipboard(text)
+      window.open('https://www.facebook.com/', '_blank')
+      return
+    }
+    const url = urls[channel]
+    if (url) window.open(url, '_blank')
+  }
+
   const openPublishModal = (vehicle: Vehicle) => {
     const inspection = inspections.find(i => i.id === vehicle.inspectionId);
     const customText = inspection?.marketing?.customAdText;
@@ -632,9 +661,33 @@ const toggleSelected = (id: string) => {
               />
             </div>
 
+            {/* Copy button */}
+            <div className="mb-4">
+              <button onClick={() => copyTextToClipboard(publishText)} className="w-full bg-gray-100 text-gray-800 px-4 py-2.5 rounded-xl hover:bg-gray-200 text-sm font-medium">
+                📋 Copy Ad Text
+              </button>
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                Tip: Facebook ignores pre-filled text. Copy it first, then paste in your post.
+              </p>
+            </div>
+
+            {/* Platform share buttons */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Share Text To</h3>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => openPlatformShare('whatsapp', publishText)} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">WhatsApp</button>
+                <button onClick={() => openPlatformShare('facebook', publishText)} className="bg-blue-700 text-white px-4 py-2 rounded-xl text-sm">Facebook</button>
+                <button onClick={() => openPlatformShare('twitter', publishText)} className="bg-sky-600 text-white px-4 py-2 rounded-xl text-sm">Twitter/X</button>
+                <button onClick={() => openPlatformShare('telegram', publishText)} className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm">Telegram</button>
+                <button onClick={() => openPlatformShare('linkedin', publishText)} className="bg-blue-800 text-white px-4 py-2 rounded-xl text-sm">LinkedIn</button>
+                <button onClick={() => openPlatformShare('email', publishText)} className="bg-gray-600 text-white px-4 py-2 rounded-xl text-sm">Email</button>
+                <button onClick={() => openPlatformShare('sms', publishText)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">SMS</button>
+              </div>
+            </div>
+
             {/* Action buttons */}
             <div className="flex gap-2">
-              <button onClick={handlePublishShare} className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Share Now</button>
+              <button onClick={handlePublishShare} className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Share with Photos</button>
               <button onClick={() => setPublishVehicle(null)} className="flex-1 bg-gray-200 text-gray-800 px-5 py-3 rounded-xl hover:bg-gray-300">Cancel</button>
             </div>
           </div>
