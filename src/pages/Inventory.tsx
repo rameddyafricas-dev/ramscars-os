@@ -10,6 +10,7 @@ import { useDealershipStore } from '../store/useDealershipStore'
 import { useToastStore } from '../store/useToastStore'
 import type { Vehicle } from '../types'
 import { getDealState, getAdvertisementPhotos } from '../services/dealEngine'
+import VehicleTimeline from '../components/VehicleTimeline'
 
 type SortOption = 'newest' | 'oldest' | 'priceAsc' | 'priceDesc' | 'mileageAsc' | 'mileageDesc' | 'make'
 
@@ -519,6 +520,11 @@ const toggleSelected = (id: string) => {
                 </div>
               </>
             )}
+            <div className="mt-4">
+              <h3 className="font-medium mb-2">Activity Timeline</h3>
+              <VehicleTimeline vehicle={quickViewVehicle} />
+            </div>
+
             <div className="flex flex-wrap gap-2 mt-6">
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/inspection/view/${quickViewVehicle.inspectionId}`) }} className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl text-sm">Full View</button>
               <button onClick={() => { setQuickViewVehicleId(null); navigateTo(`/inspection`) }} className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-sm">Edit</button>
