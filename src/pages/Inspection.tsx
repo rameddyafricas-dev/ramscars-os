@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { generateAutoListing } from '../utils/autoListing'
 import { useInspectionStore } from '../store/useInspectionStore'
 import { useVehicleStore } from '../store/useVehicleStore'
@@ -39,6 +39,7 @@ export default function InspectionPage() {
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
   const [savingInspection, setSavingInspection] = useState(false)
+  const autoSaveErrorShownRef = useRef(false)
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
@@ -107,15 +108,24 @@ export default function InspectionPage() {
   useEffect(() => {
     if (!form || !form.id) return;
     const timer = setTimeout(async () => {
-      const existingVehicle = useVehicleStore.getState().vehicles.find((v) => v.inspectionId === form.id);
-      if (!form.vehicleInfo.make && !form.vehicleInfo.model && !form.vehicleInfo.vin) return;
+      try {
+        const existingVehicle = useVehicleStore.getState().vehicles.find((v) => v.inspectionId === form.id);
+        if (!form.vehicleInfo.make && !form.vehicleInfo.model && !form.vehicleInfo.vin) return;
 
-            const vehicleData = buildVehicleData(form, existingVehicle, { preserveNotes: true })
+        const vehicleData = buildVehicleData(form, existingVehicle, { preserveNotes: true })
 
-      if (existingVehicle) {
-        await updateVehicle(vehicleData);
-      } else {
-        await createVehicle(vehicleData);
+        if (existingVehicle) {
+          await updateVehicle(vehicleData);
+        } else {
+          await createVehicle(vehicleData);
+        }
+        autoSaveErrorShownRef.current = false
+      } catch (err) {
+        console.error('Auto-save vehicle failed:', err)
+        if (!autoSaveErrorShownRef.current) {
+          autoSaveErrorShownRef.current = true
+          showToast('Auto-save failed — check your device storage', 'error')
+        }
       }
     }, 1000);
 
