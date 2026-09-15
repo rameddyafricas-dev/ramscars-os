@@ -38,6 +38,7 @@ export default function InspectionPage() {
   const [loadingLocation, setLoadingLocation] = useState(false)
   const [cameraTarget, setCameraTarget] = useState<string | null>(null)
   const [adSlotTarget, setAdSlotTarget] = useState<string | null>(null)
+  const [savingInspection, setSavingInspection] = useState(false)
 
   const modelSuggestions = form ? getModelSuggestions(form.vehicleInfo.make) : []
 
@@ -131,7 +132,15 @@ export default function InspectionPage() {
   };
 
   const handleSaveInspection = async () => {
-    await saveCurrentInspectionToInventory();
+    setSavingInspection(true)
+    try {
+      await saveCurrentInspectionToInventory()
+      showToast('Inspection saved', 'success')
+    } catch {
+      showToast('Failed to save inspection', 'error')
+    } finally {
+      setSavingInspection(false)
+    }
   };
 
   const isCurrentInspectionEmpty = () => {
@@ -472,7 +481,7 @@ export default function InspectionPage() {
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
-          <button onClick={handleSaveInspection} className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">Save</button>
+          <button onClick={handleSaveInspection} disabled={savingInspection} className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-50">{savingInspection ? 'Saving...' : 'Save'}</button>
           <button onClick={handleNewInspection} className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full shadow-lg flex items-center justify-center" title="New Inspection">+</button>
         </div>
       </div>

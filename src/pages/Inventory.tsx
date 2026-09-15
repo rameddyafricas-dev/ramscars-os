@@ -7,6 +7,7 @@ import { useCustomerStore } from '../store/useCustomerStore'
 import { useReminderStore } from '../store/useReminderStore'
 import { useDocumentStore } from '../store/useDocumentStore'
 import { useDealershipStore } from '../store/useDealershipStore'
+import { useToastStore } from '../store/useToastStore'
 import type { Vehicle } from '../types'
 import { getDealState, getAdvertisementPhotos } from '../services/dealEngine'
 
@@ -21,6 +22,7 @@ export default function Inventory() {
   const { reminders, loadReminders } = useReminderStore()
   const { profile, loadProfile } = useDealershipStore()
   const { documents, loadDocuments } = useDocumentStore()
+  const { show: showToast } = useToastStore()
 
   // UI state
   const [search, setSearch] = useState('')
@@ -36,6 +38,7 @@ export default function Inventory() {
   const [minMileage, setMinMileage] = useState('')
   const [maxMileage, setMaxMileage] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [quickViewVehicleId, setQuickViewVehicleId] = useState<string | null>(null)
   const [publishVehicle, setPublishVehicle] = useState<Vehicle | null>(null)
   const [publishText, setPublishText] = useState('')
@@ -226,15 +229,23 @@ const toggleSelected = (id: string) => {
 
   const bulkStatusUpdate = async (newStatus: Vehicle['status']) => {
     if (selectedIds.size === 0) return
-    const updates = vehicles.filter(v => selectedIds.has(v.id)).map(v => ({
-      ...v,
-      status: newStatus,
-      updatedAt: new Date().toISOString()
-    }))
-    for (const vehicle of updates) {
-      await updateVehicle(vehicle)
+    setBulkSaving(true)
+    try {
+      const updates = vehicles.filter(v => selectedIds.has(v.id)).map(v => ({
+        ...v,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      }))
+      for (const vehicle of updates) {
+        await updateVehicle(vehicle)
+      }
+      showToast(`Updated ${updates.length} vehicle(s) to ${newStatus}`, 'success')
+      clearSelection()
+    } catch {
+      showToast('Bulk update failed', 'error')
+    } finally {
+      setBulkSaving(false)
     }
-    clearSelection()
   }
 
   const navigateTo = (path: string) => navigate(path)
@@ -426,10 +437,10 @@ const toggleSelected = (id: string) => {
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-2xl rounded-xl px-4 py-3 flex items-center gap-3 z-50 border">
           <span className="font-medium">{selectedIds.size} selected</span>
-          <button onClick={() => bulkStatusUpdate('available')} className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm">Available</button>
-          <button onClick={() => bulkStatusUpdate('reserved')} className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-sm">Reserved</button>
-          <button onClick={() => bulkStatusUpdate('sold')} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm">Sold</button>
-          <button onClick={() => bulkStatusUpdate('withdrawn')} className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">Withdrawn</button>
+          <button disabled={bulkSaving} onClick={() => bulkStatusUpdate('available')} className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm disabled:opacity-50">Available</button>
+          <button disabled={bulkSaving} onClick={() => bulkStatusUpdate('reserved')} className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-sm disabled:opacity-50">Reserved</button>
+          <button disabled={bulkSaving} onClick={() => bulkStatusUpdate('sold')} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm disabled:opacity-50">Sold</button>
+          <button disabled={bulkSaving} onClick={() => bulkStatusUpdate('withdrawn')} className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm disabled:opacity-50">Withdrawn</button>
           <button onClick={clearSelection} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
       )}
