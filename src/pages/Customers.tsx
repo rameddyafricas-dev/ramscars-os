@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCustomerStore } from '../store/useCustomerStore'
+import { useToastStore } from '../store/useToastStore'
 import { useSaleStore } from '../store/useSaleStore'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useVehicleStore } from '../store/useVehicleStore'
@@ -9,6 +10,7 @@ import type { Customer, CustomerRole } from '../types'
 
 export default function Customers() {
   const { customers, loadCustomers, createCustomer, updateCustomer, deleteCustomer, isLoading } = useCustomerStore()
+  const { show: showToast } = useToastStore()
   const { sales, loadSales } = useSaleStore()
   const { vehicles, loadVehicles } = useVehicleStore()
   const [searchParams] = useSearchParams()
@@ -17,6 +19,7 @@ export default function Customers() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | CustomerRole>('all')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [saving, setSaving] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const [customerForm, setCustomerForm] = useState({
@@ -52,6 +55,8 @@ export default function Customers() {
 
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSaving(true)
+    try {
     if (editingCustomer) {
       const updated: Customer = { ...editingCustomer, ...customerForm, updatedAt: new Date().toISOString() }
       await updateCustomer(updated)
@@ -67,6 +72,11 @@ export default function Customers() {
       await createCustomer(customer)
     }
     setCustomerForm({ name: '', phone: '', email: '', address: '', role: 'other', notes: '' })
+    } catch {
+      showToast('Failed to save customer', 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const startEdit = (customer: Customer) => {
@@ -138,7 +148,7 @@ export default function Customers() {
           <input name="address" placeholder="Address" value={customerForm.address} onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })} className="border border-gray-300 rounded-xl px-4 py-2.5 col-span-full" />
           <textarea placeholder="Notes" value={customerForm.notes} onChange={(e) => setCustomerForm({ ...customerForm, notes: e.target.value })} className="border border-gray-300 rounded-xl px-4 py-2.5 col-span-full" rows={2} />
           <div className="col-span-full flex gap-2">
-            <button type="submit" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700">{editingCustomer ? 'Update Customer' : 'Add Customer'}</button>
+            <button type="submit" disabled={saving} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving...' : (editingCustomer ? 'Update Customer' : 'Add Customer')}</button>
             {editingCustomer && <button type="button" onClick={() => { setEditingCustomer(null); setCustomerForm({ name: '', phone: '', email: '', address: '', role: 'other', notes: '' }) }} className="bg-gray-200 text-gray-800 px-5 py-2.5 rounded-xl">Cancel</button>}
           </div>
         </form>

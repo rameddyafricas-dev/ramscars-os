@@ -21,6 +21,7 @@ export default function Marketing() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [generatedAdImage, setGeneratedAdImage] = useState<string | null>(null)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadVehicles()
@@ -84,12 +85,14 @@ export default function Marketing() {
     if (!editingId || !editForm) return
     const inspection = inspections.find(i => i.id === editingId)
     if (!inspection) return
+    setSaving(true)
     const updated: Inspection = { ...inspection, marketing: editForm, updatedAt: new Date().toISOString() }
     await updateInspection(updated)
     setEditingId(null)
     setEditForm(null)
     setSavedId(editingId)
     setTimeout(() => setSavedId(null), 2000)
+    setSaving(false)
   }
 
   const toggleChannel = (channel: string) => {
@@ -330,7 +333,7 @@ export default function Marketing() {
                       </button>
                     ))}
                   </div>
-                  <button onClick={handleSave} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700">Save Listing</button>
+                  <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving...' : 'Save Listing'}</button>
                 </div>
               ) : (
                 <div className="mt-4 space-y-3 text-sm">

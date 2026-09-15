@@ -30,6 +30,7 @@ export default function Documents() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [dragActive, setDragActive] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('Custom')
+  const [saving, setSaving] = useState(false)
   const [generatedHtml, setGeneratedHtml] = useState<string | null>(null)
   const [generatedTitle, setGeneratedTitle] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -312,7 +313,9 @@ export default function Documents() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !fileData) return
-    const now = new Date().toISOString()
+    setSaving(true)
+    try {
+      const now = new Date().toISOString()
     const doc: Document = {
       id: generateId('doc'),
       vehicleId: vehicleId || undefined,
@@ -348,6 +351,11 @@ export default function Documents() {
     setFileData('')
     setSelectedTemplate('Custom')
     if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (err) {
+      showToast('Failed to save document', 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -415,7 +423,7 @@ export default function Documents() {
             </div>
 
             <button type="button" onClick={handleGenerateTemplate} className="w-full bg-purple-600 text-white px-5 py-3 rounded-xl hover:bg-purple-700">Generate Document</button>
-            <button type="submit" className="w-full bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700">Add Document</button>
+            <button type="submit" disabled={saving} className="w-full bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving...' : 'Add Document'}</button>
           </form>
         </div>
 
