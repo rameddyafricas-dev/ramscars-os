@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 interface DocumentPreviewModalProps {
   type: 'image' | 'pdf' | 'html'
@@ -15,6 +15,8 @@ export default function DocumentPreviewModal({
   title = 'Document',
   onClose,
 }: DocumentPreviewModalProps) {
+  const [generating, setGenerating] = useState(false)
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -23,61 +25,106 @@ export default function DocumentPreviewModal({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const getReportFile = (): File | null => {
-    try {
-      let content = ''
-      let mimeType = 'text/html'
-      let extension = 'html'
+  const safeFilename = (ext: string) => {
+    const base = title.replace(/[^\w\s-]/g, '').trim() || 'document'
+    return base + '.' + ext
+  }
 
-      if (type === 'html' && html) {
-        content = html
-        mimeType = 'text/html'
-        extension = 'html'
-      } else if (src) {
-        if (src.startsWith('data:')) {
-          const [meta, data] = src.split(',')
-          const mimeMatch = meta.match(/data:([^;]+)/)
-          if (mimeMatch) mimeType = mimeMatch[1]
-          content = atob(data)
-        } else {
-          // For non-data URLs, we cannot reliably create a file without fetching.
-          return null
-        }
-      } else {
-        return null
+  const generatePdfBlob = async (): Promise<Blob | null> => {
+    if (type !== 'html' || !html) return null
+    try {
+      const html2pdfModule: any = await import('html2pdf.js')
+      const html2pdf = html2pdfModule.default || html2pdfModule
+      const container = document.createElement('div')
+      container.innerHTML = html
+      container.style.background = 'white'
+      container.style.padding = '0'
+
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: safeFilename('pdf'),
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
       }
 
-      const blob = new Blob([content], { type: mimeType })
-      return new File([blob], `${title.replace(/[^\w\s-]/g, '')}.${extension}`, { type: mimeType })
+      const blob: Blob = await html2pdf().set(opt).from(container).outputPdf('blob')
+      return blob
     } catch (err) {
-      console.error('Failed to create report file:', err)
+      console.error('PDF generation failed:', err)
       return null
     }
   }
 
-  const handleShareFile = async () => {
-    const file = getReportFile()
-    if (!file) {
-      handleDownloadFile()
-      return
-    }
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          title,
-          files: [file],
-        })
-      } catch (err) {
-        console.error('Share failed:', err)
-      }
-    } else {
-      handleDownloadFile()
+  const getHtmlFile = (): File | null => {
+    if (type !== 'html' || !html) return null
+    try {
+      const blob = new Blob([html], { type: 'text/html' })
+      return new File([blob], safeFilename('html'), { type: 'text/html' })
+    } catch {
+      return null
     }
   }
 
-  const handleDownloadFile = () => {
-    const file = getReportFile()
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPdf = async () => {
+    if (type === 'pdf' && src) {
+      // already a PDF – just download
+      window.open(src, '_blank')
+      return
+    }
+    setGenerating(true)
+    try {
+      const blob = await generatePdfBlob()
+      if (blob) downloadBlob(blob, safeFilename('pdf'))
+      else alert('PDF generation failed')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleSharePdf = async () => {
+    if (type === 'pdf' && src) {
+      window.open(src, '_blank')
+      return
+    }
+    setGenerating(true)
+    try {
+      const blob = await generatePdfBlob()
+      if (!blob) {
+        alert('PDF generation failed')
+        return
+      }
+      const file = new File([blob], safeFilename('pdf'), { type: 'application/pdf' })
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ title, files: [file] })
+        } catch (err) {
+          console.error('Share failed:', err)
+          downloadBlob(blob, safeFilename('pdf'))
+        }
+      } else {
+        downloadBlob(blob, safeFilename('pdf'))
+      }
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleDownloadHtml = () => {
+    const file = getHtmlFile()
     if (!file) return
     const url = URL.createObjectURL(file)
     const a = document.createElement('a')
@@ -95,7 +142,7 @@ export default function DocumentPreviewModal({
       if (win) {
         win.document.write(html)
         win.document.close()
-        win.print()
+        setTimeout(() => win.print(), 200)
       }
     } else if (src) {
       const win = window.open(src, '_blank')
@@ -118,7 +165,7 @@ export default function DocumentPreviewModal({
         </div>
         <div className="flex-1 overflow-auto p-2">
           {type === 'html' ? (
-            <iframe srcDoc={html} title={title} className="w-full h-[65vh]" />
+            <iframe srcDoc={html} title={title} className="w-full h-[65vh] bg-white" />
           ) : type === 'pdf' ? (
             <iframe src={src} title={title} className="w-full h-[65vh]" />
           ) : (
@@ -126,9 +173,25 @@ export default function DocumentPreviewModal({
           )}
         </div>
         <div className="p-3 flex gap-2 border-t flex-wrap">
-          <button onClick={handlePrint} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm">Print</button>
-          <button onClick={handleShareFile} className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">Share File</button>
-          <button onClick={handleDownloadFile} className="bg-gray-600 text-white px-4 py-2 rounded-xl text-sm">Download</button></div>
+          <button
+            onClick={handleSharePdf}
+            disabled={generating}
+            className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-green-700 disabled:opacity-50"
+          >
+            {generating ? 'Generating PDF…' : '📤 Share PDF'}
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generating}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {generating ? 'Generating PDF…' : '⬇️ Download PDF'}
+          </button>
+          <button onClick={handlePrint} className="bg-gray-800 text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-900">Print</button>
+          {type === 'html' && (
+            <button onClick={handleDownloadHtml} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl text-sm hover:bg-gray-300">Download HTML</button>
+          )}
+        </div>
       </div>
     </div>
   )

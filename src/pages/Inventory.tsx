@@ -140,164 +140,213 @@ export default function Inventory() {
 
   const generateInspectionEnhancedText = (vehicle: Vehicle, inspection: any): string => {
     const marketing = inspection?.marketing
-    const score = inspection?.score || {}
-    const scores = Object.values(score).filter((v): v is number => typeof v === 'number' && v !== null)
-    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
-    const condition = avgScore !== null
-      ? avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Needs Attention'
-      : null
-
-    const faults: string[] = (inspection?.faults || [])
-      .map((f: any) => (f.description || '').trim())
-      .filter((s: string) => s.length > 0)
-
-    const docs = documents.filter(d => d.vehicleId === vehicle.id)
-    const hpiDoc = docs.find(d => d.title.toLowerCase().includes('hpi') && !d.title.toLowerCase().includes('failed'))
-    const hpiFailed = docs.find(d => d.title.toLowerCase().includes('hpi') && d.title.toLowerCase().includes('failed'))
-    const roadworthy = docs.some(d => d.title.toLowerCase().includes('roadworthy'))
-    const serviceHistory = docs.some(d => d.title.toLowerCase().includes('service history'))
-
-    const categoryLabels: Record<string, string> = {
-      documentation: 'Legal Documents',
-      exterior: 'Exterior',
-      interior: 'Interior',
-      engine_bay: 'Engine Bay & Drivetrain',
-      underbody: 'Underbody & Suspension',
-    }
-
-    const categorySummaries: { label: string; summary: string; icon: string }[] = []
-    const checklist = inspection?.checklist || []
-    for (const [key, label] of Object.entries(categoryLabels)) {
-      const items = checklist.filter((c: any) => String(c.category) === key)
-      if (items.length === 0) continue
-      const total = items.length
-      const pass = items.filter((c: any) => c.result === 'pass').length
-      const advisory = items.filter((c: any) => c.result === 'advisory').length
-      const fail = items.filter((c: any) => c.result === 'fail').length
-      const unchecked = items.filter((c: any) => !c.result).length
-
-      let icon = '✅'
-      const parts: string[] = [`${pass}/${total} pass`]
-      if (fail > 0) parts.push(`${fail}/${total} fail`)
-      if (advisory > 0) parts.push(`${advisory}/${total} advisory`)
-      if (unchecked > 0) parts.push(`${unchecked}/${total} pending`)
-
-      if (fail > 0) icon = '❌'
-      else if (advisory > 0) icon = '⚠️'
-      else if (unchecked === total) icon = '⏳'
-      else if (unchecked > 0) icon = '⏳'
-
-      categorySummaries.push({ label, summary: parts.join(' · '), icon })
-    }
-
+    const vi = inspection?.vehicleInfo || {}
     const price = vehicle.listingPrice ?? inspection?.financial?.sellingPrice
-    const mileage = vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : (inspection?.vehicleInfo?.mileage ? `${Number(inspection.vehicleInfo.mileage).toLocaleString()} km` : null)
-    const colour = vehicle.colour || inspection?.vehicleInfo?.color
-    const body = vehicle.classification || inspection?.vehicleInfo?.bodyType
-    const fuel = vehicle.fuelType || inspection?.vehicleInfo?.fuelType
-    const transmission = vehicle.transmission || inspection?.vehicleInfo?.transmission
+    const mileage = vehicle.mileage
+      ? vehicle.mileage.toLocaleString()
+      : (vi.mileage ? Number(vi.mileage).toLocaleString() : '')
 
-    const title = marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`.trim()
+    const colour = vehicle.colour || vi.color || ''
+    const body = vehicle.classification || vi.bodyType || ''
+    const fuel = vehicle.fuelType || vi.fuelType || ''
+    const transmission = vehicle.transmission || vi.transmission || ''
+    const status = vi.vehicleType === 'non-runner' ? 'NON-RUNNER' : 'RUNNER'
+
+    const title = marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`.trim().toUpperCase()
+    const stockNumber = vehicle.stockNumber || '—'
 
     const dealerName = profile?.name || 'RamsCars Dealership'
     const dealerPhone = profile?.phone || '064 974 0759'
-    const dealerEmail = profile?.email || ''
-    const dealerAddress = profile?.address || ''
+    const dealerEmail = profile?.email || 'rameddyafricas@gmail.com'
+    const dealerAddress = profile?.address || 'Hammanskraal, ZA'
 
-    const divider = '━━━━━━━━━━━━━━━━━━━━━'
-    const lines: string[] = []
+    const div = '━━━━━━━━━━━━━━━━━━━━━━━━'
 
-    // Header
-    lines.push(divider)
-    lines.push(`🚗  ${title.toUpperCase()}`)
-    lines.push(divider)
-    lines.push('')
+    // Checklist grouped by category
+    const categories: { key: string; label: string; header: string }[] = [
+      { key: 'documentation', label: 'LEGAL DOCUMENTS', header: 'LEGAL DOCUMENTS' },
+      { key: 'exterior', label: 'EXTERIOR', header: 'EXTERIOR' },
+      { key: 'interior', label: 'INTERIOR', header: 'INTERIOR' },
+      { key: 'engine_bay', label: 'ENGINE BAY & DRIVETRAIN', header: 'ENGINE BAY & DRIVETRAIN' },
+      { key: 'underbody', label: 'UNDERBODY', header: 'UNDERBODY' },
+    ]
 
-    // Hook
-    if (marketing?.description) {
-      lines.push(marketing.description)
-    } else {
-      lines.push(`A carefully inspected ${vehicle.make} ${vehicle.model} — ready for its next proud owner.`)
-    }
-    lines.push('')
-
-    // Highlights
-    lines.push('✨  WHY YOU WILL LOVE IT')
-    lines.push('✅  Multi-Point Inspected')
-    if (hpiDoc) lines.push('✅  HPI Cleared')
-    else if (hpiFailed) lines.push('⚠️  HPI Flagged — Deal on Hold')
-    if (roadworthy) lines.push('✅  Roadworthy Available')
-    if (serviceHistory) lines.push('✅  Service History Available')
-    lines.push('📄  Full Report on Request')
-    lines.push('')
-
-    // Specifications
-    lines.push('📋  SPECIFICATIONS')
-    if (vehicle.year) lines.push(`•  Year: ${vehicle.year}`)
-    if (mileage) lines.push(`•  Mileage: ${mileage}`)
-    if (colour) lines.push(`•  Colour: ${colour}`)
-    if (body) lines.push(`•  Body: ${body}`)
-    if (fuel) lines.push(`•  Fuel: ${fuel.charAt(0).toUpperCase() + fuel.slice(1)}`)
-    if (transmission) lines.push(`•  Transmission: ${transmission.charAt(0).toUpperCase() + transmission.slice(1)}`)
-    if (vehicle.stockNumber) lines.push(`•  Stock: ${vehicle.stockNumber}`)
-    lines.push('')
-
-    // Inspection Summary
-    if (avgScore !== null) {
-      lines.push(`🔍  INSPECTION SCORE — ${avgScore}% ${condition ? `(${condition})` : ''}`)
-      lines.push(divider)
+    const padLine = (label: string, value: string, width = 32) => {
+      const dots = '-'.repeat(Math.max(2, width - label.length))
+      return `${label}${dots}${value}`
     }
 
-    if (categorySummaries.length > 0) {
-      lines.push('🛠️  MULTI-POINT BREAKDOWN')
-      categorySummaries.forEach(c => lines.push(`${c.icon}  ${c.label} — ${c.summary}`))
-      lines.push(divider)
-      lines.push('')
+    const resultText = (r?: string) => {
+      if (r === 'pass') return 'Pass ✅'
+      if (r === 'advisory') return 'Advisory ⚠️'
+      if (r === 'fail') return 'Fail ❌'
+      if (r === 'na') return 'Not Available 🚫'
+      return 'Pending'
     }
 
-    // Faults
-    lines.push('⚠️  FAULTS DISCLOSED')
-    if (faults.length === 0) {
-      lines.push('•  None recorded during inspection.')
-    } else {
-      faults.forEach(f => lines.push(`•  ${f}`))
+    const categoryScore = (items: any[]) => {
+      const scored = items.filter(i => i.result === 'pass' || i.result === 'advisory' || i.result === 'fail')
+      if (scored.length === 0) return null
+      const passes = scored.filter(i => i.result === 'pass').length
+      const advisories = scored.filter(i => i.result === 'advisory').length
+      return Math.round(((passes + advisories * 0.5) / scored.length) * 100)
     }
-    lines.push('')
 
-    // Price
+    const L: string[] = []
+    const gap = () => L.push('')
+
+    // ─── HEADLINE ───
+    L.push(`🔥🚗 ${title}`)
     if (price !== undefined && price !== null) {
-      lines.push(`💰  PRICE: R ${price.toLocaleString()}`)
+      L.push(` 💰PRICE: R${price.toLocaleString()}‼️🔥`)
     } else {
-      lines.push('💰  PRICE: Contact for price')
+      L.push(' 💰PRICE: Contact us‼️🔥')
     }
-    lines.push('')
+    gap()
+    L.push(`${dealerName.toUpperCase()} STOCK NUMBER: ${stockNumber}`)
+    L.push(div)
+    gap()
 
-    // CTA
-    lines.push(divider)
-    lines.push('📄  WANT THE FULL REPORT?')
-    lines.push('Get the complete multi-point inspection report')
-    lines.push('including checklist, photos and video — on WhatsApp.')
-    lines.push('')
-    lines.push('👀  VIEWING ARRANGEMENTS')
-    lines.push('Book your viewing via WhatsApp or Call. Easy & quick.')
-    lines.push(divider)
-    lines.push('')
+    // ─── VEHICLE DETAILS ───
+    L.push('📋 VEHICLE DETAILS')
+    gap()
+    const descBits: string[] = []
+    if (colour) descBits.push(colour)
+    if (vehicle.year) descBits.push(String(vehicle.year))
+    if (vehicle.make) descBits.push(vehicle.make)
+    if (vehicle.model) descBits.push(vehicle.model)
+    if (body) descBits.push(body)
+    L.push(`A ${descBits.join(' ')} with ${mileage} km mileage using ${transmission} transmission and ${fuel} engine.`)
+    gap()
+    L.push(`STATUS: ${status === 'RUNNER' ? '🟢 RUNNER' : '🔴 NON-RUNNER'}`)
+    if (status === 'RUNNER') L.push('COLD START🔑: START AND GO')
+    gap()
+    if (vehicle.year) L.push(`📅 Year: ${vehicle.year}`)
+    if (mileage) L.push(`🛣️ Mileage: ${mileage} km`)
+    if (transmission) L.push(`⚙️ Transmission: ${transmission.charAt(0).toUpperCase() + transmission.slice(1)}`)
+    if (fuel) L.push(`⛽ Fuel: ${fuel.charAt(0).toUpperCase() + fuel.slice(1)}`)
+    if (colour) L.push(`🎨 Colour: ${colour}`)
+    if (body) L.push(`🚘 Body Type: ${body}`)
+    gap()
 
-    // Contact
-    lines.push(`📞  ${dealerName.toUpperCase()}`)
-    if (dealerPhone) lines.push(`📱  ${dealerPhone}`)
-    if (dealerEmail) lines.push(`✉️  ${dealerEmail}`)
-    if (dealerAddress) lines.push(`📍  ${dealerAddress}`)
-    lines.push('')
-    lines.push('✅  Inspected. Transparent. Trusted.')
+    // ─── INSPECTION ───
+    L.push('🔎 INSPECTION')
+    gap()
 
-    // Hashtags
-    if (marketing?.hashtags && marketing.hashtags.length > 0) {
-      lines.push('')
-      lines.push(marketing.hashtags.join(' '))
+    const checklist = inspection?.checklist || []
+    for (const cat of categories) {
+      const items = checklist.filter((c: any) => String(c.category) === cat.key)
+      if (items.length === 0) continue
+      L.push(`• ${cat.header}:`)
+      items.forEach((it: any) => {
+        L.push(padLine(it.label, resultText(it.result)))
+      })
+      const score = categoryScore(items)
+      if (score !== null) {
+        const shortLabel = cat.label.charAt(0) + cat.label.slice(1).toLowerCase()
+        L.push(`${shortLabel} Score: ${score}%`)
+      }
+      gap()
     }
 
-    return lines.join('\n')
+    // ─── FAULTS ───
+    const faults = (inspection?.faults || []).filter((f: any) => (f.description || '').trim())
+    L.push('🔨 FAULTS')
+    if (faults.length === 0) {
+      L.push('• No faults recorded during inspection.')
+    } else {
+      faults.forEach((f: any) => L.push(`• ${f.description.trim()}`))
+    }
+    gap()
+    L.push('(The full inspection report is available on request and includes the complete inspection checklist, notes, supporting photos and short video of the vehicle.)')
+    gap()
+
+    // ─── PRICE ───
+    if (price !== undefined && price !== null) {
+      L.push(`🔥💰 PRICE: R${price.toLocaleString()}‼️🔥`)
+    }
+    gap()
+    L.push(div)
+
+    // ─── CTA ───
+    L.push(`📲 INTERESTED IN THIS ${vehicle.make?.toUpperCase() || 'VEHICLE'} ${vehicle.model?.toUpperCase() || ''}?`)
+    gap()
+    L.push('Don\'t just save the post and come back later.')
+    gap()
+    L.push('📄 REQUEST THE FULL INSPECTION REPORT NOW')
+    L.push('Review the inspection details, photographs and vehicle video before making the trip.')
+    gap()
+    L.push('👀 READY TO SEE IT?')
+    L.push('Contact us now and secure your viewing appointment.')
+    gap()
+    L.push('🤝 IF IT\'S THE RIGHT CAR FOR YOU')
+    L.push(`Complete your purchase with ${dealerName}, and we\'ll assist you through the paperwork process.`)
+    gap()
+    L.push(`📱 WhatsApp / Call: ${dealerPhone}`)
+    L.push(`✉️ Email: ${dealerEmail}`)
+    L.push(`📍 ${dealerAddress}`)
+    gap()
+    L.push(`QUOTE STOCK NUMBER: ${stockNumber}`)
+    gap()
+    L.push('🔥 REQUEST THE REPORT NOW.')
+    L.push('🔥 ARRANGE YOUR VIEWING.')
+    L.push("🔥 IT'S YOURS TO OWN.")
+    gap()
+    L.push('Your next step starts with a message.')
+    L.push(div)
+
+    // ─── ABOUT ───
+    L.push(`🤝 ABOUT ${dealerName.toUpperCase()}`)
+    gap()
+    L.push(`At ${dealerName}, we believe buying a pre-owned vehicle should be a clear, transparent and trustworthy experience.`)
+    gap()
+    L.push('Every vehicle is inspected and its known faults are disclosed.')
+    gap()
+    L.push('OUR PROCESS')
+    gap()
+    L.push('1. SEE THE CAR')
+    L.push('You find the vehicle on social media and show your interest.')
+    gap()
+    L.push('2. SEE THE REPORT')
+    L.push('We provide the vehicle inspection report, including the inspection details and available photographs, so you can see the vehicle before viewing it.')
+    gap()
+    L.push('3. VIEW THE VEHICLE')
+    L.push('Interested? We arrange a viewing for you to inspect the vehicle in person.')
+    gap()
+    L.push('4. COMPLETE THE PURCHASE')
+    L.push(`Satisfied with the vehicle? ${dealerName} handles the paperwork and purchase process with you.`)
+    gap()
+    L.push('5. VEHICLE CHECK')
+    L.push('Our cars have already undergone a police check, giving you added peace of mind when proceeding with your purchase.')
+    gap()
+    L.push('Transparency gives you the information.')
+    L.push('Trust gives you the confidence.')
+    gap()
+    L.push('See it. Know it. View it. Decide.')
+    gap()
+    L.push(dealerName)
+    L.push('Inspected & Transparent.')
+    gap()
+
+    // ─── HASHTAGS ───
+    const make = (vehicle.make || '').replace(/\s+/g, '')
+    const model = (vehicle.model || '').replace(/\s+/g, '')
+    const defaultTags = [
+      make,
+      model,
+      `${make}${model}`,
+      'UsedCars',
+      'Pre-Owned',
+      'CarsForSale',
+      'SouthAfrica',
+      `${dealerName.replace(/\s+/g, '')}`,
+    ].filter(Boolean)
+    const tags = (marketing?.hashtags && marketing.hashtags.length > 0)
+      ? marketing.hashtags
+      : defaultTags.map(t => t.startsWith('#') ? t : `#${t}`)
+    L.push(tags.join(' '))
+
+    return L.join('\n')
   }
 
   const copyTextToClipboard = async (text: string) => {

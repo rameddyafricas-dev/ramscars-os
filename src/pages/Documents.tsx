@@ -8,7 +8,7 @@ import { useVehicleStore } from '../store/useVehicleStore'
 import { useToastStore } from '../store/useToastStore'
 import { generateId } from '../utils/id'
 import { compressImage } from '../utils/image'
-import type { Document } from '../types'
+import type { Document , Vehicle } from '../types'
 import DocumentPreviewModal from '../components/DocumentPreviewModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 
@@ -35,12 +35,31 @@ export default function Documents() {
   const [generatedTitle, setGeneratedTitle] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const generateTemplateHtml = (templateLabel: string, vehicleId: string): string => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return '<p>No vehicle selected</p>';
-    const inspection = inspections.find(i => i.id === vehicle.inspectionId);
-    const sale = sales
-      .filter(s => s.vehicleId === vehicleId && s.status !== 'cancelled')
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const blankVehicle: Vehicle = {
+      id: '',
+      vin: '________________________',
+      registration: '____________________',
+      make: '_______________________',
+      model: '___________________________',
+      year: '' as unknown as number,
+      mileage: '' as unknown as number,
+      colour: '_______________',
+      fuelType: 'petrol',
+      transmission: 'manual',
+      classification: '_______________',
+      status: 'available',
+      stockNumber: '',
+      createdAt: '',
+      updatedAt: '',
+    };
+    const foundVehicle = vehicleId ? vehicles.find(v => v.id === vehicleId) : undefined;
+    const vehicle: Vehicle = foundVehicle || blankVehicle;
+    const inspection = foundVehicle ? inspections.find(i => i.id === foundVehicle.inspectionId) : undefined;
+    const sale = foundVehicle
+      ? sales
+          .filter(s => s.vehicleId === vehicleId && s.status !== 'cancelled')
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      : undefined;
     const buyer = sale ? customers.find(c => c.id === sale.buyerId) : null;
     const dealer = profile;
     const owner = inspection?.ownerInfo;
@@ -57,10 +76,12 @@ export default function Documents() {
           <h1 style="text-align:center;">RAMSCARS DEALERSHIP</h1>
           <h2 style="text-align:center;">EXCLUSIVE VEHICLE CONSIGNMENT AGREEMENT</h2>
 
-          <p><span class="label">Agreement Date:</span> ${new Date().toISOString().slice(0,10)}</p>
-          <p><span class="label">Consignment Period Window (Check one option):</span><br/>
-          [  ] 30 Days &nbsp; [  ] 60 Days &nbsp; [  ] 90 Days</p>
-          <p><span class="label">Agreement Expiry Date:</span> ___________________</p>
+          <p><span class="label">Agreement Date:</span> ___________________________</p>
+          <p><span class="label">Consignment Period Window (Tick one option):</span><br/>
+          <label style="margin-right:16px;"><input type="checkbox" /> 30 Days</label>
+          <label style="margin-right:16px;"><input type="checkbox" /> 60 Days</label>
+          <label><input type="checkbox" /> 90 Days</label></p>
+          <p><span class="label">Agreement Expiry Date:</span> ___________________________</p>
 
           <hr/>
 
@@ -84,11 +105,11 @@ export default function Documents() {
             <p><span class="label">VIN Number:</span> ${vehicle.vin || '________________________'}</p>
             <p><span class="label">Engine Number:</span> ${vi?.engineNumber || '______________________'}</p>
             <p><span class="label">License Plate / Reg Number:</span> ${vi?.registrationNumber || '____________'}</p>
-            <p><span class="label">Current Mileage:</span> ${vehicle.mileage.toLocaleString()} km</p>
+            <p><span class="label">Current Mileage:</span> ${vehicle.mileage ? vehicle.mileage.toLocaleString() + ' km' : '____________________'}</p>
 
-            <p><span class="label">Vehicle Operating Status (Check one option):</span><br/>
-            [  ] RUNNING VEHICLE: The vehicle is mechanically functional, operational, and capable of being driven.<br/>
-            [  ] NON-RUNNING VEHICLE: The vehicle is currently non-functional/not running (e.g., mechanical failure, project car, or stationary asset). The Seller confirms all known faults have been fully disclosed to the Agent for inspection tracking.</p>
+            <p><span class="label">Vehicle Operating Status (Tick one option):</span><br/>
+            <label style="display:block;margin-top:6px;"><input type="checkbox" /> RUNNING VEHICLE: The vehicle is mechanically functional, operational, and capable of being driven.</label>
+            <label style="display:block;margin-top:6px;"><input type="checkbox" /> NON-RUNNING VEHICLE: The vehicle is currently non-functional/not running (e.g., mechanical failure, project car, or stationary asset). The Seller confirms all known faults have been fully disclosed to the Agent for inspection tracking.</label></p>
           </div>
 
           <div class="section">
@@ -112,6 +133,41 @@ export default function Documents() {
             <p>5.3. Redirection Mandate: The Seller must immediately redirect any such walk-in or external inquiry back to RamsCars Dealership.</p>
             <p>5.4. Penalty for Cut-Out / Breach: Any direct sale, private transaction, processing of payment, or transfer of ownership executed with any buyer (whether sourced via RamsCars marketing campaigns, digital platforms, or an uninitiated passerby walking onto the property) during the active exclusive window—or within 90 days post-expiry to any party introduced or exposed to the vehicle via the dealership—constitutes an immediate and severe breach of contract.</p>
             <p>5.5. Upon such breach, the Seller shall remain legally liable to pay RamsCars Dealership the full expected markup/profit amount (calculated as the difference between the intended retail price and the Seller Target Price) immediately upon the conclusion of the transaction as liquidated damages.</p>
+          </div>
+
+          <div class="section">
+            <h2>6. DECLARATION & SIGNATURES</h2>
+            <p>By signing below, both parties confirm that they have read, understood, and agree to all terms and conditions of this Exclusive Vehicle Consignment Agreement.</p>
+            <table style="width:100%;border:none;margin-top:1.5rem;">
+              <tr>
+                <td style="border:none;padding:1.5rem 1rem 0 0;width:50%;">
+                  <p style="margin:0 0 4px 0;"><span class="label">Seller Signature:</span></p>
+                  <p style="margin:0;border-bottom:1px solid #4b5563;height:36px;"></p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> _________________________________</p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Date:</span> ___________________________</p>
+                </td>
+                <td style="border:none;padding:1.5rem 0 0 1rem;width:50%;">
+                  <p style="margin:0 0 4px 0;"><span class="label">Agent Signature:</span></p>
+                  <p style="margin:0;border-bottom:1px solid #4b5563;height:36px;"></p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> Maemo Edwith Rammutla</p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Date:</span> ___________________________</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="border:none;padding:2rem 1rem 0 0;width:50%;">
+                  <p style="margin:0 0 4px 0;"><span class="label">Witness 1 Signature:</span></p>
+                  <p style="margin:0;border-bottom:1px solid #4b5563;height:36px;"></p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> _________________________________</p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Date:</span> ___________________________</p>
+                </td>
+                <td style="border:none;padding:2rem 0 0 1rem;width:50%;">
+                  <p style="margin:0 0 4px 0;"><span class="label">Witness 2 Signature:</span></p>
+                  <p style="margin:0;border-bottom:1px solid #4b5563;height:36px;"></p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> _________________________________</p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Date:</span> ___________________________</p>
+                </td>
+              </tr>
+            </table>
           </div>
 
           <hr/>
@@ -232,8 +288,8 @@ export default function Documents() {
   };
 
   const handleGenerateTemplate = () => {
-    if (!vehicleId || selectedTemplate === 'Custom') {
-      showToast('Select a vehicle and a template');
+    if (selectedTemplate === 'Custom') {
+      showToast('Select a template to generate');
       return;
     }
     const html = generateTemplateHtml(selectedTemplate, vehicleId);
