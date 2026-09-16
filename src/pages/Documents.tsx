@@ -73,7 +73,7 @@ export default function Documents() {
     switch (templateLabel) {
             case 'Consignment Agreement':
         body = `
-          <h1 style="text-align:center;">RAMSCARS DEALERSHIP</h1>
+          <h1 style="text-align:center;">${(dealer?.name || 'RAMSCARS DEALERSHIP').toUpperCase()}</h1>
           <h2 style="text-align:center;">EXCLUSIVE VEHICLE CONSIGNMENT AGREEMENT</h2>
 
           <p><span class="label">Agreement Date:</span> ___________________________</p>
@@ -88,8 +88,10 @@ export default function Documents() {
           <div class="section">
             <h2>1. PARTIES</h2>
             <p>This Agreement is entered into by and between:</p>
-            <p><span class="label">The Agent:</span> RAMSCARS DEALERSHIP, represented by Maemo Edwith Rammutla</p>
-            <p>ID Number: 9504215609084 | Contact Number: 064 974 0759</p>
+            <p><span class="label">The Agent:</span> ${dealer?.name || 'RAMSCARS DEALERSHIP'}${dealer?.agentName ? `, represented by ${dealer.agentName}` : ''}</p>
+            <p>${dealer?.agentIdNumber ? `ID Number: ${dealer.agentIdNumber} | ` : ''}${dealer?.phone ? `Contact Number: ${dealer.phone}` : ''}</p>
+            ${dealer?.email ? `<p>Email: ${dealer.email}</p>` : ''}
+            ${dealer?.address ? `<p>Address: ${dealer.address}</p>` : ''}
             <p><span class="label">The Seller (Full Legal Name):</span> ${owner?.name || '____________________________________'}</p>
             <p><span class="label">ID / Passport Number:</span> ${owner?.idNumber || '____________________________________'}</p>
             <p><span class="label">Contact Number:</span> ${owner?.contactNumber || '____________________________'}</p>
@@ -149,7 +151,7 @@ export default function Documents() {
                 <td style="border:none;padding:1.5rem 0 0 1rem;width:50%;">
                   <p style="margin:0 0 4px 0;"><span class="label">Agent Signature:</span></p>
                   <p style="margin:0;border-bottom:1px solid #4b5563;height:36px;"></p>
-                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> Maemo Edwith Rammutla</p>
+                  <p style="margin:6px 0 0 0;"><span class="label">Full Name:</span> ${dealer?.agentName || '___________________________'}</p>
                   <p style="margin:6px 0 0 0;"><span class="label">Date:</span> ___________________________</p>
                 </td>
               </tr>

@@ -8,6 +8,8 @@ export interface DealershipProfile {
   email: string
   address: string
   logo?: string
+  agentName?: string
+  agentIdNumber?: string
 }
 
 interface DealershipState {

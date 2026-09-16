@@ -10,6 +10,8 @@ export default function Profile() {
     phone: '',
     email: '',
     address: '',
+    agentName: '',
+    agentIdNumber: '',
   })
   const [saved, setSaved] = useState(false)
   const navigate = useNavigate()
@@ -20,7 +22,15 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setForm(profile)
+      setForm({
+        id: profile.id,
+        name: profile.name || '',
+        phone: profile.phone || '',
+        email: profile.email || '',
+        address: profile.address || '',
+        agentName: profile.agentName || '',
+        agentIdNumber: profile.agentIdNumber || '',
+      })
     }
   }, [profile])
 
@@ -101,6 +111,31 @@ export default function Profile() {
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name (Signatory)</label>
+              <input
+                type="text"
+                name="agentName"
+                value={(form as any).agentName || ''}
+                onChange={handleChange}
+                placeholder="e.g. Maemo Edwith Rammutla"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Agent ID Number</label>
+              <input
+                type="text"
+                name="agentIdNumber"
+                value={(form as any).agentIdNumber || ''}
+                onChange={handleChange}
+                placeholder="e.g. 9504215609084"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">

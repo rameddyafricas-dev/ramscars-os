@@ -34,7 +34,15 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // Service worker registration with update prompt
 if ('serviceWorker' in navigator) {
+  // In development, unregister any stale service workers to prevent cache conflicts
+  if (import.meta.env.DEV) {
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => reg.unregister())
+    })
+  }
+
   window.addEventListener('load', () => {
+    if (!import.meta.env.PROD) return
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         // Check for updates on page load
