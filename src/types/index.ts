@@ -55,6 +55,7 @@ export interface OwnerInfo {
 
 export interface VehicleInfo {
   vehicleType: 'runner' | 'non-runner';
+  coldStart?: 'start-and-go' | 'starts-with-effort' | 'jump-start-required' | 'does-not-start' | 'not-tested';
   make: string;
   model: string;
   year: string;

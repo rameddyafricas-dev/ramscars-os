@@ -548,6 +548,13 @@ export default function InspectionPage() {
             <option value="runner">Runner</option>
             <option value="non-runner">Non-Runner</option>
           </select>
+          <select name="coldStart" value={form.vehicleInfo.coldStart || 'start-and-go'} onChange={handleVehicleChange} className="border border-gray-300 rounded-xl px-4 py-2.5">
+            <option value="start-and-go">Start and Go</option>
+            <option value="starts-with-effort">Starts with Effort</option>
+            <option value="jump-start-required">Jump Start Required</option>
+            <option value="does-not-start">Does Not Start</option>
+            <option value="not-tested">Not Tested</option>
+          </select>
           <input name="vin" placeholder="VIN" value={form.vehicleInfo.vin} onChange={handleVINChange} className="border border-gray-300 rounded-xl px-4 py-2.5" />
 
           {decodedVIN && (

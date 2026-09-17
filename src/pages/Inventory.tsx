@@ -152,7 +152,15 @@ export default function Inventory() {
     const transmission = vehicle.transmission || vi.transmission || ''
     const status = vi.vehicleType === 'non-runner' ? 'NON-RUNNER' : 'RUNNER'
 
-    const title = marketing?.title || `${vehicle.year} ${vehicle.make} ${vehicle.model}`.trim().toUpperCase()
+    const bodyType = vehicle.classification || vi.bodyType || ''
+    const modelWithBody = vehicle.model && bodyType && !vehicle.model.toLowerCase().includes(bodyType.toLowerCase())
+      ? `${vehicle.model} ${bodyType}`
+      : (vehicle.model || '')
+    const fallbackTitle = `${vehicle.year || ''} ${vehicle.make || ''} ${modelWithBody}`.trim().toUpperCase()
+    const rawMarketingTitle = marketing?.title || ''
+    const title = (rawMarketingTitle && !rawMarketingTitle.toLowerCase().includes('unknown'))
+      ? rawMarketingTitle.toUpperCase()
+      : fallbackTitle
     const stockNumber = vehicle.stockNumber || '—'
 
     const dealerName = profile?.name || 'RamsCars Dealership'
@@ -171,16 +179,23 @@ export default function Inventory() {
       { key: 'underbody', label: 'UNDERBODY', header: 'UNDERBODY' },
     ]
 
-    const padLine = (label: string, value: string, width = 32) => {
-      const dots = '-'.repeat(Math.max(2, width - label.length))
-      return `${label}${dots}${value}`
+    const resultIcon = (r?: string) => {
+      if (r === 'pass') return '✅'
+      if (r === 'advisory') return '⚠️'
+      if (r === 'fail') return '❌'
+      if (r === 'na') return '🚫'
+      return '•'
+    }
+
+    const padLine = (label: string, value: string, result?: string) => {
+      return `${resultIcon(result)} ${label} — ${value}`
     }
 
     const resultText = (r?: string) => {
-      if (r === 'pass') return 'Pass ✅'
-      if (r === 'advisory') return 'Advisory ⚠️'
-      if (r === 'fail') return 'Fail ❌'
-      if (r === 'na') return 'Not Available 🚫'
+      if (r === 'pass') return 'Pass'
+      if (r === 'advisory') return 'Advisory'
+      if (r === 'fail') return 'Fail'
+      if (r === 'na') return 'Not Available'
       return 'Pending'
     }
 
@@ -210,19 +225,38 @@ export default function Inventory() {
     // ─── VEHICLE DETAILS ───
     L.push('📋 VEHICLE DETAILS')
     gap()
-    const descBits: string[] = []
-    if (colour) descBits.push(colour)
-    if (vehicle.year) descBits.push(String(vehicle.year))
-    if (vehicle.make) descBits.push(vehicle.make)
-    if (vehicle.model) descBits.push(vehicle.model)
-    if (body) descBits.push(body)
-    L.push(`A ${descBits.join(' ')} with ${mileage} km mileage using ${transmission} transmission and ${fuel} engine.`)
+    const descParts: string[] = []
+    const header = [colour, vehicle.year, vehicle.make, vehicle.model, body].filter(Boolean).join(' ').trim()
+    if (header) descParts.push(`A ${header}`)
+
+    const detailParts: string[] = []
+    if (mileage && Number(mileage) > 0) detailParts.push(`${mileage} km mileage`)
+    if (transmission) detailParts.push(`${transmission} transmission`)
+    if (fuel) detailParts.push(`${fuel} engine`)
+
+    if (header && detailParts.length > 0) {
+      L.push(`${descParts[0]} with ${detailParts.join(', ')}.`)
+    } else if (header) {
+      L.push(`${descParts[0]}.`)
+    } else if (detailParts.length > 0) {
+      L.push(`A vehicle with ${detailParts.join(', ')}.`)
+    }
     gap()
     L.push(`STATUS: ${status === 'RUNNER' ? '🟢 RUNNER' : '🔴 NON-RUNNER'}`)
-    if (status === 'RUNNER') L.push('COLD START🔑: START AND GO')
+    const coldStartMap: Record<string, string> = {
+      'start-and-go': 'START AND GO',
+      'starts-with-effort': 'STARTS WITH EFFORT',
+      'jump-start-required': 'JUMP START REQUIRED',
+      'does-not-start': 'DOES NOT START',
+      'not-tested': 'NOT TESTED',
+    }
+    const coldStartValue = vi.coldStart || 'start-and-go'
+    L.push('🔑 ' + (coldStartMap[coldStartValue] || 'START AND GO'))
     gap()
+    if (vehicle.make) L.push(`🏭 Make: ${vehicle.make}`)
+    if (vehicle.model) L.push(`🚙 Model: ${vehicle.model}`)
     if (vehicle.year) L.push(`📅 Year: ${vehicle.year}`)
-    if (mileage) L.push(`🛣️ Mileage: ${mileage} km`)
+    L.push(mileage && Number(mileage) > 0 ? `🛣️ Mileage: ${mileage} km` : '🛣️ Mileage: Unknown')
     if (transmission) L.push(`⚙️ Transmission: ${transmission.charAt(0).toUpperCase() + transmission.slice(1)}`)
     if (fuel) L.push(`⛽ Fuel: ${fuel.charAt(0).toUpperCase() + fuel.slice(1)}`)
     if (colour) L.push(`🎨 Colour: ${colour}`)
@@ -239,7 +273,7 @@ export default function Inventory() {
       if (items.length === 0) continue
       L.push(`• ${cat.header}:`)
       items.forEach((it: any) => {
-        L.push(padLine(it.label, resultText(it.result)))
+        L.push(padLine(it.label, resultText(it.result), it.result))
       })
       const score = categoryScore(items)
       if (score !== null) {

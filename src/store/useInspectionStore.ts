@@ -23,6 +23,7 @@ const emptyOwnerInfo: OwnerInfo = {
 
 const emptyVehicleInfo: VehicleInfo = {
   vehicleType: 'runner',
+  coldStart: 'start-and-go',
   make: '',
   model: '',
   year: '',
