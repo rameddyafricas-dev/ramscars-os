@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { cleanupLargeVideos } from './services/cleanup'
 import './index.css'
 
 // Apply saved theme before render
@@ -90,8 +91,19 @@ function showUpdateBanner() {
   document.body.appendChild(banner)
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+// Run one-time cleanup of oversized media BEFORE the app loads data.
+// This prevents mobile browsers from crashing on legacy large videos.
+cleanupLargeVideos().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+}).catch((err) => {
+  console.error('Startup cleanup failed, continuing anyway:', err)
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+})

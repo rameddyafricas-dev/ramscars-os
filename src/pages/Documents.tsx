@@ -345,9 +345,13 @@ export default function Documents() {
       const data = await compressImage(file, 1600, 1600, 0.8)
       setFileData(data)
     } else {
-      const reader = new FileReader()
-      reader.onload = () => setFileData(reader.result as string)
-      reader.readAsDataURL(file)
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsDataURL(file)
+      })
+      setFileData(data)
     }
   }
 

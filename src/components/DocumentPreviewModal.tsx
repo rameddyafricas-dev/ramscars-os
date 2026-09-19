@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent)
+}
+
 interface DocumentPreviewModalProps {
   type: 'image' | 'pdf' | 'html'
   src?: string
@@ -16,6 +21,7 @@ export default function DocumentPreviewModal({
   onClose,
 }: DocumentPreviewModalProps) {
   const [generating, setGenerating] = useState(false)
+  const [displaySrc, setDisplaySrc] = useState<string | undefined>(src)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,6 +30,27 @@ export default function DocumentPreviewModal({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
+
+  useEffect(() => {
+    if (!src) { setDisplaySrc(undefined); return }
+    if (type === 'pdf' && src.startsWith('data:application/pdf')) {
+      try {
+        const b64 = src.split(',')[1]
+        const byteChars = atob(b64)
+        const bytes = new Uint8Array(byteChars.length)
+        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        setDisplaySrc(url)
+        return () => URL.revokeObjectURL(url)
+      } catch (err) {
+        console.error('PDF blob conversion failed:', err)
+        setDisplaySrc(src)
+      }
+    } else {
+      setDisplaySrc(src)
+    }
+  }, [src, type])
 
   const safeFilename = (ext: string) => {
     const base = title.replace(/[^\w\s-]/g, '').trim() || 'document'
@@ -167,7 +194,24 @@ export default function DocumentPreviewModal({
           {type === 'html' ? (
             <iframe srcDoc={html} title={title} className="w-full h-[65vh] bg-white" />
           ) : type === 'pdf' ? (
-            <iframe src={src} title={title} className="w-full h-[65vh]" />
+            isMobileDevice() ? (
+              <div className="flex flex-col items-center justify-center h-[65vh] bg-gray-50 rounded-xl px-6 text-center">
+                <div className="text-6xl mb-4">📄</div>
+                <p className="font-semibold text-gray-800 mb-1">{title}</p>
+                <p className="text-sm text-gray-500 mb-6">PDF document ready</p>
+                <button
+                  onClick={() => { if (displaySrc) window.open(displaySrc, '_blank') }}
+                  className="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 text-sm font-medium"
+                >
+                  📖 Open PDF
+                </button>
+                <p className="text-xs text-gray-400 mt-3 max-w-xs">
+                  Mobile browsers can't render PDFs inside the app. Tapping "Open PDF" uses your phone's built-in PDF viewer.
+                </p>
+              </div>
+            ) : (
+              <iframe src={displaySrc} title={title} className="w-full h-[65vh] bg-white" />
+            )
           ) : (
             <img src={src} alt={title} className="max-w-full max-h-[65vh] object-contain mx-auto" />
           )}
