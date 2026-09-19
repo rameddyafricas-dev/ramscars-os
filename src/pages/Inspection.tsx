@@ -344,6 +344,77 @@ export default function InspectionPage() {
     setAdSlotTarget(null)
   }
 
+  const handleMoveAdSlot = (index: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      if (!prev?.advertisementSlots) return prev
+      const slots = [...prev.advertisementSlots]
+      const targetIndex = index + direction
+      if (targetIndex < 0 || targetIndex >= slots.length) return prev
+      if (slots[index].id === 'adv_video' || slots[targetIndex].id === 'adv_video') return prev
+      const temp = slots[index]
+      slots[index] = slots[targetIndex]
+      slots[targetIndex] = temp
+      return { ...prev, advertisementSlots: slots }
+    })
+  }
+
+  const handleRemoveAdSlot = (slotId: string) => {
+    if (slotId === 'adv_video') return
+    setForm((prev) => {
+      if (!prev?.advertisementSlots) return prev
+      return { ...prev, advertisementSlots: prev.advertisementSlots.filter((s) => s.id !== slotId) }
+    })
+    setAdSlotTarget(null)
+  }
+
+  const handleAddAdSlot = () => {
+    setPromptState({
+      title: 'Add Photo Slot',
+      fields: [{ key: 'label', label: 'Photo Label' }],
+      onSubmit: (values) => {
+        if (!values.label) return
+        setForm((prev) => {
+          if (!prev?.advertisementSlots) return prev
+          const videoIndex = prev.advertisementSlots.findIndex((s) => s.id === 'adv_video')
+          const newSlot = {
+            id: `adv_custom_${Date.now()}`,
+            label: values.label,
+            photo: '',
+          }
+          const slots = [...prev.advertisementSlots]
+          if (videoIndex === -1) {
+            slots.push(newSlot)
+          } else {
+            slots.splice(videoIndex, 0, newSlot)
+          }
+          return { ...prev, advertisementSlots: slots }
+        })
+      },
+    })
+  }
+
+  const handleChecklistPhotoMove = (itemId: string, index: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        checklist: prev.checklist.map((c) => {
+          if (c.id !== itemId) return c
+          const photoLabels = [...(c.photoLabels || [])]
+          const mediaIds = [...(c.mediaIds || [])]
+          const targetIndex = index + direction
+          if (targetIndex < 0 || targetIndex >= photoLabels.length) return c
+          ;[photoLabels[index], photoLabels[targetIndex]] = [photoLabels[targetIndex], photoLabels[index]]
+          const m1 = mediaIds[index] || ''
+          const m2 = mediaIds[targetIndex] || ''
+          mediaIds[index] = m2
+          mediaIds[targetIndex] = m1
+          return { ...c, photoLabels, mediaIds }
+        }),
+      }
+    })
+  }
+
   const openAdCamera = (slotId: string) => {
     setCameraTarget(`ad:${slotId}:0`)
     setShowCamera(true)
@@ -641,86 +712,133 @@ export default function InspectionPage() {
 
       <CollapsibleCard title={`Advertisement Photos (${form.advertisementSlots?.filter((s) => s.photo).length || 0}/${form.advertisementSlots?.length || 0})`}>
         <div className="flex flex-wrap gap-3">
-          {form.advertisementSlots?.map((slot) => (
-            <div key={slot.id} className="relative">
-              {slot.photo ? (
-                <div className="relative group">
-                  {slot.id === 'adv_video' ? (
-                    <video
-                      src={slot.photo}
-                      className="photo-thumb h-20 w-20 object-cover cursor-pointer"
-                      onClick={() => setAdSlotTarget(slot.id)}
-                      controls={false}
-                      muted
-                    />
-                  ) : (
-                    <img
-                      src={slot.photo}
-                      alt={slot.label}
-                      className="photo-thumb h-20 w-20"
-                      onClick={() => setAdSlotTarget(slot.id)}
-                    />
-                  )}
-                  <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-20">{slot.label}</p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setAdSlotTarget(slot.id)}
-                  className="h-20 w-20 border-2 border-dashed border-indigo-300 rounded-xl flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
-                >
-                  {slot.label}
-                </button>
-              )}
-
-              {adSlotTarget === slot.id && (
-                <div className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center gap-1 z-10 p-1">
-                  {slot.id !== 'adv_video' && (
-                    <button
-                      onClick={() => openAdCamera(slot.id)}
-                      className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
-                    >
-                      Camera
-                    </button>
-                  )}
-                  <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
-                    Gallery
-                    <input
-                      type="file"
-                      accept={slot.id === 'adv_video' ? 'video/*' : 'image/*'}
-                      className="hidden"
-                      onChange={(e) => handleAdGallery(e, slot.id)}
-                    />
-                  </label>
-                  {slot.id === 'adv_video' && slot.photo && (
-                    <button
-                      onClick={() => {
-                        setSelectedVideo(slot.photo)
-                        setAdSlotTarget(null)
-                      }}
-                      className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
-                    >
-                      Preview
-                    </button>
-                  )}
-                  {slot.photo && (
-                    <button
-                      onClick={() => setConfirmState({ message: 'Delete this media?', onConfirm: () => handleDeleteAdMedia(slot.id) })}
-                      className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
-                    >
-                      Delete
-                    </button>
-                  )}
+          {form.advertisementSlots?.map((slot, idx) => {
+            const isVideo = slot.id === 'adv_video'
+            const totalSlots = form.advertisementSlots?.length || 0
+            const isFirst = idx === 0
+            const nextIsVideo = form.advertisementSlots?.[idx + 1]?.id === 'adv_video'
+            const isLast = idx === totalSlots - 1
+            return (
+              <div key={slot.id} className="relative flex flex-col items-center">
+                {slot.photo ? (
+                  <div className="relative group">
+                    {isVideo ? (
+                      <video
+                        src={slot.photo}
+                        className="photo-thumb h-20 w-20 object-cover cursor-pointer"
+                        onClick={() => setAdSlotTarget(slot.id)}
+                        controls={false}
+                        muted
+                      />
+                    ) : (
+                      <img
+                        src={slot.photo}
+                        alt={slot.label}
+                        className="photo-thumb h-20 w-20 cursor-pointer"
+                        onClick={() => setAdSlotTarget(slot.id)}
+                      />
+                    )}
+                  </div>
+                ) : (
                   <button
-                    onClick={() => setAdSlotTarget(null)}
-                    className="text-white text-xs mt-1 hover:underline"
+                    onClick={() => setAdSlotTarget(slot.id)}
+                    className="h-20 w-20 border-2 border-dashed border-indigo-300 rounded-xl flex items-center justify-center text-indigo-500 text-xs text-center p-1 hover:bg-indigo-50"
                   >
-                    Cancel
+                    {slot.label}
                   </button>
+                )}
+                <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-20">{slot.label}</p>
+
+                <div className="flex items-center gap-1 mt-0.5">
+                  {slot.photo && !isVideo && (
+                    <button
+                      onClick={() => setSelectedPhoto(slot.photo)}
+                      className="text-[10px] text-blue-600 hover:underline"
+                    >Preview</button>
+                  )}
+                  {slot.photo && isVideo && (
+                    <button
+                      onClick={() => setSelectedVideo(slot.photo)}
+                      className="text-[10px] text-blue-600 hover:underline"
+                    >Preview</button>
+                  )}
+                  {!isVideo && (
+                    <>
+                      <button
+                        onClick={() => handleMoveAdSlot(idx, -1)}
+                        disabled={isFirst}
+                        className="text-[10px] text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move up"
+                      >↑</button>
+                      <button
+                        onClick={() => handleMoveAdSlot(idx, 1)}
+                        disabled={isLast || nextIsVideo}
+                        className="text-[10px] text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move down"
+                      >↓</button>
+                      <button
+                        onClick={() => setConfirmState({
+                          message: `Remove "${slot.label}" slot?`,
+                          onConfirm: () => handleRemoveAdSlot(slot.id),
+                        })}
+                        className="text-[10px] text-red-600 hover:underline"
+                        title="Remove slot"
+                      >✕</button>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {adSlotTarget === slot.id && (
+                  <div className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center gap-1 z-10 p-1">
+                    {!isVideo && (
+                      <button
+                        onClick={() => openAdCamera(slot.id)}
+                        className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                      >
+                        Camera
+                      </button>
+                    )}
+                    <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg w-full text-center cursor-pointer">
+                      Gallery
+                      <input
+                        type="file"
+                        accept={isVideo ? 'video/*' : 'image/*'}
+                        className="hidden"
+                        onChange={(e) => handleAdGallery(e, slot.id)}
+                      />
+                    </label>
+                    {isVideo && slot.photo && (
+                      <button
+                        onClick={() => { setSelectedVideo(slot.photo); setAdSlotTarget(null) }}
+                        className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                      >Preview</button>
+                    )}
+                    {!isVideo && slot.photo && (
+                      <button
+                        onClick={() => { setSelectedPhoto(slot.photo); setAdSlotTarget(null) }}
+                        className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                      >Preview</button>
+                    )}
+                    {slot.photo && (
+                      <button
+                        onClick={() => setConfirmState({ message: 'Delete this media?', onConfirm: () => handleDeleteAdMedia(slot.id) })}
+                        className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg w-full"
+                      >Clear</button>
+                    )}
+                    <button
+                      onClick={() => setAdSlotTarget(null)}
+                      className="text-white text-xs mt-1 hover:underline"
+                    >Cancel</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
+        <button
+          onClick={handleAddAdSlot}
+          className="mt-3 text-xs text-indigo-600 hover:underline"
+        >+ Add Photo Slot</button>
       </CollapsibleCard>
 
       <CollapsibleCard title={`Checklist (${overallFilledSlots}/${overallTotalSlots})`}>
@@ -748,6 +866,7 @@ export default function InspectionPage() {
         onPhotoPreview={setSelectedPhoto}
         onPhotoDelete={handleChecklistPhotoDelete}
         onAddPhotoSlot={handleAddPhotoSlot}
+        onMovePhoto={handleChecklistPhotoMove}
         onRequestAddPhotoSlot={handleRequestAddPhotoSlot}
         onGallery={handleChecklistGallery}
       />

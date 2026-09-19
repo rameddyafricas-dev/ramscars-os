@@ -198,13 +198,25 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
       // Migrate old checklists to the new default if length differs or missing photoLabels
       inspections = inspections.map((insp) => {
         const needsMigration = !insp.checklist || insp.checklist.length !== defaultChecklist.length || insp.checklist.some((item) => !item.photoLabels)
-        // Preserve existing advertisement slots; add missing ones without wiping photos
+        // Preserve ALL existing advertisement slots in their current order,
+        // including custom slots. Only append any default slots that are missing.
         const existingSlots = Array.isArray(insp.advertisementSlots) ? insp.advertisementSlots : [];
-        let mergedSlots = defaultAdvertisementSlots.map((defaultSlot) => {
-          const existing = existingSlots.find((slot) => slot.id === defaultSlot.id);
-          if (existing) return { ...defaultSlot, photo: existing.photo || '' };
-          return defaultSlot;
-        });
+        let mergedSlots = [...existingSlots];
+
+        // Append default slots that don't already exist (but not video — handled below)
+        for (const defaultSlot of defaultAdvertisementSlots) {
+          const alreadyExists = mergedSlots.some((slot) => slot.id === defaultSlot.id);
+          if (!alreadyExists) {
+            mergedSlots.push({ ...defaultSlot });
+          }
+        }
+
+        // Force video slot to be last
+        const videoIndex = mergedSlots.findIndex((s) => s.id === 'adv_video');
+        if (videoIndex !== -1 && videoIndex !== mergedSlots.length - 1) {
+          const [videoSlot] = mergedSlots.splice(videoIndex, 1);
+          mergedSlots.push(videoSlot);
+        }
         // If no slot has photos and there are legacy advertisementPhotos, populate slots
         const hasSlotPhoto = mergedSlots.some((slot) => slot.photo && slot.photo.trim() !== '');
         const legacyPhotos = Array.isArray(insp.advertisementPhotos) ? insp.advertisementPhotos.filter((photo) => photo) : [];

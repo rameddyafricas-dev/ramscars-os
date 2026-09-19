@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import type { ChecklistItem } from '../types'
 
-function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onRequestAddPhotoSlot, onGallery }: {
+function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNote, onPhotoCapture, onPhotoPreview, onPhotoDelete, onRequestAddPhotoSlot, onMovePhoto, onGallery }: {
   title: string
   items: ChecklistItem[]
   totalSlots: number
@@ -12,6 +12,7 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
   onPhotoPreview: (src: string) => void
   onPhotoDelete: (itemId: string, index: number, mode: 'photo' | 'slot') => void
   onAddPhotoSlot: (itemId: string, label: string) => void
+  onMovePhoto: (itemId: string, index: number, direction: -1 | 1) => void
   onRequestAddPhotoSlot: (itemId: string) => void
   onGallery: (itemId: string, index: number, file: File) => void
 }) {
@@ -99,6 +100,20 @@ function ChecklistGroup({ title, items, totalSlots, filledSlots, onResult, onNot
                               >📄</div>
                             )}
                             <p className="text-[10px] text-gray-500 text-center mt-1 truncate w-16">{label}</p>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => onMovePhoto(item.id, idx, -1)}
+                                disabled={idx === 0}
+                                className="text-[10px] text-gray-600 disabled:opacity-30"
+                                title="Move left"
+                              >←</button>
+                              <button
+                                onClick={() => onMovePhoto(item.id, idx, 1)}
+                                disabled={idx === (item.photoLabels?.length || 0) - 1}
+                                className="text-[10px] text-gray-600 disabled:opacity-30"
+                                title="Move right"
+                              >→</button>
+                            </div>
                             <button onClick={() => setConfirm({ type: 'photo', itemId: item.id, index: idx })} className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow">✕</button>
                             {confirm?.type === 'photo' && confirm.itemId === item.id && confirm.index === idx && (
                               <div className="absolute inset-0 bg-black/60 rounded-lg flex flex-col items-center justify-center gap-1 z-10">
